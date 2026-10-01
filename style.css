@@ -1573,3 +1573,9 @@ body.dark #modalRevert .rv-field textarea:focus{background:#0b1511;border-color:
 #modalRevert .modal-footer .btn svg{width:14px;height:14px;}
 /* nonaktif sebelum alasan diisi */
 .btn-warn:disabled,#revertSubmitBtn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.6);box-shadow:none;transform:none;}
+
+/* Chip alasan: selalu 1 baris, ukuran menyesuaikan lebar popup */
+#modalRevert .rv-chips{display:flex;flex-wrap:nowrap;gap:5px;}
+#modalRevert .rv-chip{flex:1 1 auto;min-width:0;white-space:nowrap;text-align:center;font-size:11px;padding:7px 8px;overflow:hidden;text-overflow:ellipsis;}
+@media (max-width:420px){#modalRevert .rv-chip{font-size:10.5px;padding:7px 5px;}}
+@media (max-width:340px){#modalRevert .rv-chip{font-size:10px;padding:6px 4px;}}

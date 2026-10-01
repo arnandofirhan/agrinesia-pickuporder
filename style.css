@@ -1485,3 +1485,41 @@ html:has(#loginPage:not(.hidden)),body:has(#loginPage:not(.hidden)){overflow:hid
 .login-page input,.login-page button,.login-page label,.login-page a{touch-action:manipulation;}
 html:has(#loginPage:not(.hidden)),body:has(#loginPage:not(.hidden)){overflow:hidden !important;overscroll-behavior:none !important;position:fixed;inset:0;width:100%;}
 .lg-blob{max-width:100vw;}
+
+/* =====================================================================
+   KPI COMPACT v2 — kartu dashboard lebih ramping, tetap informatif
+   Layout: [ikon] LABEL
+           NILAI BESAR
+           keterangan (1 baris)
+   ===================================================================== */
+.app-shell .kpi-grid{gap:10px !important;margin-bottom:14px !important;}
+.app-shell .kpi{display:grid !important;grid-template-columns:auto minmax(0,1fr);
+  grid-template-areas:"icon label" "value value" "sub sub" "bar bar";
+  align-items:center;column-gap:9px;row-gap:0;
+  padding:12px 14px !important;border-radius:16px !important;min-height:0 !important;}
+.app-shell .kpi>.kpi-icon{grid-area:icon;width:30px !important;height:30px !important;margin:0 !important;border-radius:10px !important;}
+.app-shell .kpi>.kpi-icon svg{width:15px !important;height:15px !important;}
+.app-shell .kpi>.kpi-label{grid-area:label;margin:0 !important;font-size:10px !important;line-height:1.2 !important;letter-spacing:.06em !important;
+  white-space:normal !important;overflow:visible !important;overflow-wrap:anywhere;}
+.app-shell .kpi>.kpi-value{grid-area:value;margin:7px 0 1px !important;font-size:24px !important;line-height:1.1 !important;letter-spacing:-.02em;
+  white-space:nowrap !important;overflow:hidden;text-overflow:ellipsis;}
+.app-shell .kpi>.kpi-sub{grid-area:sub;margin:0 !important;font-size:11px !important;line-height:1.3 !important;
+  white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;}
+.app-shell .kpi>.kpi-bar{grid-area:bar;margin-top:8px !important;height:6px !important;}
+.app-shell .kpi>.kpi-go{position:absolute;top:12px;right:12px;bottom:auto;}
+.app-shell .kpi.kpi-span>.kpi-sub{white-space:normal !important;}
+
+@media (min-width:901px){
+  .app-shell .kpi{padding:14px 16px !important;}
+  .app-shell .kpi>.kpi-value{font-size:26px !important;}
+}
+@media (max-width:600px){
+  .app-shell .kpi-grid{gap:8px !important;margin-bottom:12px !important;}
+  .app-shell .kpi{padding:10px 12px !important;border-radius:14px !important;column-gap:8px;}
+  .app-shell .kpi>.kpi-icon{width:26px !important;height:26px !important;border-radius:9px !important;}
+  .app-shell .kpi>.kpi-icon svg{width:13px !important;height:13px !important;}
+  .app-shell .kpi>.kpi-label{font-size:9.5px !important;letter-spacing:.04em !important;}
+  .app-shell .kpi>.kpi-value{font-size:20px !important;margin:6px 0 1px !important;}
+  .app-shell .kpi>.kpi-sub{font-size:10px !important;}
+  .app-shell .kpi.kpi-wide>.kpi-value,.app-shell .kpi.kpi-span>.kpi-value{font-size:22px !important;}
+}

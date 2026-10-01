@@ -1698,3 +1698,22 @@ body.dark .modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-se
 #modalOrderDetail .modal-footer .btn-secondary{border-radius:14px;box-shadow:0 6px 14px -6px rgba(39,73,109,.3);}
 body.dark .modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary),body.dark #confirmCancelBtn{background:#162a21;border-color:#2a4337;color:#dfeee6;box-shadow:none;}
 body.dark .modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary)::before,body.dark #confirmCancelBtn::before{background:#1f382c;color:#9fc4b0;}
+
+/* ===== v17: header mobile - akun di kiri, kanan hanya tema + lonceng ===== */
+@media (max-width:900px){
+  .header{gap:8px !important;}
+  .header-title{display:none !important;}
+  .header-right{display:contents !important;}
+  .user-wrap{order:-1;flex:1 1 auto;min-width:0;}
+  #themeToggle{order:1;flex-shrink:0;}
+  .bell-wrap{order:2;flex-shrink:0;}
+  .user-chip{display:flex !important;align-items:center;gap:11px;padding:0 0 0 5px !important;border:0 !important;min-width:0;max-width:100%;-webkit-tap-highlight-color:transparent;}
+  .user-avatar{width:40px;height:40px;font-size:15px;}
+  .user-meta{display:block !important;min-width:0;line-height:1.2;}
+  .user-meta::before{content:"Selamat datang";display:block;font-size:11px;font-weight:500;color:var(--muted);margin-bottom:1px;}
+  .user-name{display:block;max-width:100%;font-size:14.5px;font-weight:800;letter-spacing:-.01em;color:#0b1b14;}
+  .user-role{display:inline-block;max-width:100%;margin-top:2px;font-size:9.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--primary-light);color:var(--primary-dark);}
+  .user-menu{left:12px !important;right:auto !important;}
+  body.dark .user-name{color:#f1f8f4;}
+  body.dark .user-role{background:rgba(14,159,110,.2);color:#6ee7b7;}
+}

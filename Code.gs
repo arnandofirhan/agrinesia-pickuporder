@@ -5,7 +5,7 @@
 
 const CONFIG = {
   SPREADSHEET_ID: '1siAQBtzwrnM_5h_9d1P-RYGgXQwWGsvYpwOrYllVLOk', // <-- GANTI dengan ID Spreadsheet Anda
-  SESSION_TIMEOUT_MINUTES: 120
+  SESSION_TIMEOUT_MINUTES: 10080
 };
 
 const SHEETS = {

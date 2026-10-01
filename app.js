@@ -158,6 +158,11 @@ function fmtDate(v) {
   return p(m[3]) + '-' + p(m[2]) + '-' + m[1] + (m[4] ? ' ' + m[4] : '');
 }
 function isAdmin() { return STATE.user && STATE.user.role === 'ADMIN'; }
+/* ===== Sesi login: tetap login walau PWA di-swipe/close (localStorage), bukan hilang seperti sessionStorage ===== */
+function isStandalone() { try { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; } catch (e) { return false; } }
+function sessGet(k) { try { return localStorage.getItem(k) || sessionStorage.getItem(k); } catch (e) { return null; } }
+function sessSet(k, v, persist) { try { localStorage.removeItem(k); sessionStorage.removeItem(k); (persist ? localStorage : sessionStorage).setItem(k, v); } catch (e) {} }
+function sessDel(k) { try { localStorage.removeItem(k); } catch (e) {} try { sessionStorage.removeItem(k); } catch (e) {} }
 function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
 
 var pending = 0;
@@ -187,7 +192,7 @@ function api(name, args, ok, fail) {
 }
 
 function forceRelogin() {
-  try { sessionStorage.removeItem('pom_token'); sessionStorage.removeItem('pom_user'); } catch (e) {}
+  sessDel('pom_token'); sessDel('pom_user');
   showToast('Sesi berakhir, silakan login kembali.', 'warning');
   setTimeout(resetToLogin, 1200);
 }
@@ -334,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function () {
   setInterval(tickClock, 1000);
 
   var saved = null;
-  try { saved = sessionStorage.getItem('pom_token'); } catch (e) {}
+  saved = sessGet('pom_token');
   if (!saved) { $('bootSplash').classList.add('hidden'); showLogin(); return; }
 
   STATE.token = saved;
@@ -344,14 +349,18 @@ document.addEventListener('DOMContentLoaded', function () {
       if (res.success) {
         // validateSession tidak mengembalikan nama/store; ambil dari cache sesi bila ada
         var cached = null;
-        try { cached = JSON.parse(sessionStorage.getItem('pom_user') || 'null'); } catch (e) {}
+        try { cached = JSON.parse(sessGet('pom_user') || 'null'); } catch (e) {}
         restoreSessionUI(cached || { name: res.data.username, username: res.data.username, role: res.data.role, storeId: res.data.storeId, storeName: '', areaId: res.data.areaId });
       } else {
-        try { sessionStorage.removeItem('pom_token'); } catch (e) {}
+        sessDel('pom_token'); sessDel('pom_user');
         showLogin();
       }
     })
-    .withFailureHandler(function () { $('bootSplash').classList.add('hidden'); showLogin(); })
+    .withFailureHandler(function () {
+      $('bootSplash').classList.add('hidden');
+      var c2 = null; try { c2 = JSON.parse(sessGet('pom_user') || 'null'); } catch (e) {}
+      if (c2 && c2.username) restoreSessionUI(c2); else showLogin();   // jaringan lemah != sesi habis
+    })
     .validateSession(STATE.token);
 });
 
@@ -594,10 +603,9 @@ function handleLogin(e) {
       if (res.success) {
         saveRemembered_(u);
         STATE.token = res.data.token;
-        try {
-          sessionStorage.setItem('pom_token', STATE.token);
-          sessionStorage.setItem('pom_user', JSON.stringify(res.data));
-        } catch (err) {}
+        var keep = ($('loginRemember') && $('loginRemember').checked) || isStandalone();
+        sessSet('pom_token', STATE.token, keep);
+        sessSet('pom_user', JSON.stringify(res.data), keep);
         restoreSessionUI(res.data);
       } else {
         showLoginError(res.message || 'Username atau password salah.');
@@ -677,7 +685,7 @@ function doLogout() {
   // Instan: langsung ke halaman login, invalidasi sesi di server berjalan di background (tanpa menunggu)
   var token = STATE.token;
   closeAllModals();
-  try { sessionStorage.removeItem('pom_token'); sessionStorage.removeItem('pom_user'); } catch (e) {}
+  sessDel('pom_token'); sessDel('pom_user');
   resetToLogin();
   try { google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).logout(token); } catch (e) {}
 }
@@ -955,10 +963,10 @@ function renderDashboard() {
 /* ---- Notification read-state (persist per browser, per user) ---- */
 function notifStoreKey_() { return 'pom_notif_read_' + (STATE.user ? STATE.user.username : ''); }
 function loadNotifRead_() {
-  try { STATE.notifRead = JSON.parse(sessionStorage.getItem(notifStoreKey_())) || {}; } catch (e) { STATE.notifRead = {}; }
+  try { STATE.notifRead = JSON.parse(localStorage.getItem(notifStoreKey_())) || {}; } catch (e) { STATE.notifRead = {}; }
 }
 function saveNotifRead_() {
-  try { sessionStorage.setItem(notifStoreKey_(), JSON.stringify(STATE.notifRead)); } catch (e) {}
+  try { localStorage.setItem(notifStoreKey_(), JSON.stringify(STATE.notifRead)); } catch (e) {}
 }
 function markNotifRead_(ref) {
   if (!ref || STATE.notifRead[ref]) return;

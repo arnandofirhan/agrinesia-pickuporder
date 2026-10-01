@@ -1268,8 +1268,7 @@ function renderOrderDetail(o) {
       '<div class="od-box od-full"><div class="od-box-title">' + ic('package', 'sm') + ' Pesanan</div>' +
         dsub('Hamper', o.hamperName) + '<div class="od-two">' + dsub('Tipe', o.deliveryType) + dsub('Order Number', o.orderReference) + '</div></div>' +
       '<div class="od-box od-full od-log"><div class="od-box-title">' + ic('clock', 'sm') + ' Riwayat Update</div>' +
-        '<div class="od-two"><div id="odUpBy">' + dsub('Updated By', o.updatedBy) + '</div>' + dsub('Updated At', fmtDate(o.updatedAt)) + '</div>' +
-        '<div class="od-tl-head">Riwayat Status</div><div id="odTimeline" class="od-tl"><div class="od-tl-empty">Memuat riwayat...</div></div></div>' +
+        '<div id="odTimeline" class="od-tl"><div class="od-tl-empty">Memuat riwayat...</div></div></div>' +
     '</div>';
   loadOrderTimeline_(o);
 

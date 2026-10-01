@@ -1458,7 +1458,10 @@ body.dark .app-shell .kpi,body.dark .app-shell .kpi:hover{box-shadow:none !impor
 }
 
 /* 7) Scroll lebih halus pada area yang bisa di-scroll sendiri */
-.nf-body,.notif-body,.modal-body,.table-wrapper,.sidebar-nav{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+.nf-body,.notif-body,.modal-body{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+/* tabel: JANGAN tahan scroll ke halaman (sebelumnya bikin scroll mouse/jari macet saat kursor di atas tabel) */
+.table-wrapper,.sidebar-nav{overscroll-behavior:auto !important;overscroll-behavior-y:auto !important;}
+.table-wrapper{overscroll-behavior-x:contain;}
 
 /* =====================================================================
    LOGIN FIX — tidak bisa di-scroll, selalu di tengah, 1 baris rapi

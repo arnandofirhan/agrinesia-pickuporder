@@ -236,7 +236,10 @@ function runAction(o) {
     if (!res.success) { procError(res.message || o.errMsg); return; }
     try { if (o.onOk) o.onOk(res); } catch (e) { console.error(e); }
     procSuccess(o.okMsg || res.message || 'Berhasil', o.after);
-  }, function () { procError(o.errMsg || 'Gagal memproses. Periksa koneksi Anda.'); });
+  }, function (err) {
+    var m = err && err.message ? String(err.message) : '';
+    procError((o.errMsg || 'Gagal memproses.') + (m ? ' (' + m + ')' : ' Periksa koneksi Anda.'));
+  });
 }
 
 function btnLoading(btn, on, label) {
@@ -1207,7 +1210,7 @@ function renderOrders(keepScroll) {
 
   pager.classList.toggle('hidden', all.length <= 25 && PAGE_SIZE === 25);
   $('orderPageSize').value = String(PAGE_SIZE);
-  $('pagerInfo').textContent = 'Menampilkan ' + (start + 1) + '–' + (start + rows.length) + ' dari ' + all.length;
+  $('pagerInfo').textContent = (start + 1) + '–' + (start + rows.length) + ' / ' + all.length;
   $('orderPages').innerHTML = pagerNumsHtml_(STATE.pageNo, pages);
   $('prevPageBtn').disabled = STATE.pageNo <= 1;
   $('nextPageBtn').disabled = STATE.pageNo >= pages;
@@ -1265,8 +1268,10 @@ function renderOrderDetail(o) {
       '<div class="od-box od-full"><div class="od-box-title">' + ic('package', 'sm') + ' Pesanan</div>' +
         dsub('Hamper', o.hamperName) + '<div class="od-two">' + dsub('Tipe', o.deliveryType) + dsub('Order Number', o.orderReference) + '</div></div>' +
       '<div class="od-box od-full od-log"><div class="od-box-title">' + ic('clock', 'sm') + ' Riwayat Update</div>' +
-        '<div class="od-two">' + dsub('Updated By', o.updatedBy) + dsub('Updated At', fmtDate(o.updatedAt)) + '</div></div>' +
+        '<div class="od-two"><div id="odUpBy">' + dsub('Updated By', o.updatedBy) + '</div>' + dsub('Updated At', fmtDate(o.updatedAt)) + '</div>' +
+        '<div class="od-tl-head">Riwayat Status</div><div id="odTimeline" class="od-tl"><div class="od-tl-empty">Memuat riwayat...</div></div></div>' +
     '</div>';
+  loadOrderTimeline_(o);
 
   var f = $('orderDetailFooter');
   if (isReadyStatus(o.pickupStatus)) {
@@ -1280,6 +1285,36 @@ function renderOrderDetail(o) {
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
     if ($('detailRevertBtn')) $('detailRevertBtn').addEventListener('click', function () { askRevert(o); });
   }
+}
+
+/* Riwayat status (dari Pickup_Log): dari status apa ke apa, oleh siapa, kapan, alasan */
+function loadOrderTimeline_(o) {
+  var ref = o.orderReference;
+  api('getAuditLog', [STATE.token, ref], function (res) {
+    var box = $('odTimeline');
+    if (!box) return;
+    var rows = (res && res.success && res.data) || [];
+    if (!rows.length) { box.innerHTML = '<div class="od-tl-empty">Belum ada riwayat perubahan status.</div>'; return; }
+    if (!o.updatedBy && rows[0].updatedBy) {
+      o.updatedBy = rows[0].updatedBy;
+      var c = $('odUpBy'); if (c) c.innerHTML = dsub('Updated By', o.updatedBy);
+    }
+    box.innerHTML = rows.map(function (r) {
+      var rev = /^REVERT/.test(r.notes || '');
+      var parts = String(r.notes || '').split(' | '), reason = '', extra = [];
+      parts.forEach(function (p) {
+        if (/^Alasan:/.test(p)) reason = p.replace(/^Alasan:\s*/, '');
+        else if (/^(Tgl Kirim sebelumnya|Diselesaikan oleh):/.test(p)) extra.push(p);
+      });
+      if (!rev && r.notes) reason = r.notes;
+      return '<div class="od-tl-item ' + (rev ? 'is-rev' : 'is-ok') + '"><span class="od-tl-dot">' + ic(rev ? 'undo' : 'check', 'sm') + '</span>' +
+        '<div class="od-tl-body"><div class="od-tl-top"><b>' + (rev ? 'Status dibatalkan' : 'Order diselesaikan') + '</b><small>' + esc(fmtDate(r.updatedAt)) + '</small></div>' +
+        '<div class="od-tl-flow">' + statusBadge(r.previousStatus) + '<span class="od-tl-arrow">&rarr;</span>' + statusBadge(r.newStatus) + '</div>' +
+        '<div class="od-tl-by">oleh <b>' + esc(r.updatedBy || '-') + '</b></div>' +
+        (reason ? '<div class="od-tl-note">' + (rev ? 'Alasan: ' : '') + esc(reason) + '</div>' : '') +
+        (extra.length ? '<div class="od-tl-extra">' + esc(extra.join(' · ')) + '</div>' : '') + '</div></div>';
+    }).join('');
+  }, function () { var b = $('odTimeline'); if (b) b.innerHTML = '<div class="od-tl-empty">Gagal memuat riwayat.</div>'; });
 }
 
 function askComplete(o) {
@@ -1352,7 +1387,7 @@ function submitRevert() {
       var o = findOrder(ref);
       var prev = o ? o.pickupStatus : '';
       var ns = res.data.newStatus;
-      if (o) { o.pickupStatus = ns; o.deliveryDate = ''; o.updatedBy = ''; o.updatedAt = nowStamp(); }
+      if (o) { o.pickupStatus = ns; o.deliveryDate = ''; o.updatedBy = STATE.user.name || STATE.user.username; o.updatedAt = nowStamp(); }
       if (STATE.stats) {
         if (prev === 'COMPLETED_PICKUP') STATE.stats.completedPickup = Math.max(0, STATE.stats.completedPickup - 1);
         if (prev === 'COMPLETED_DELIVERY') STATE.stats.completedDelivery = Math.max(0, STATE.stats.completedDelivery - 1);
@@ -1505,7 +1540,7 @@ function renderUsersPager_(total, start, shown, pages) {
   // Pager tetap tampil agar pilihan jumlah data bisa diubah, kecuali data sangat sedikit
   pg.classList.toggle('hidden', total <= 25 && USER_PAGE.size === 25);
   $('userPageSize').value = String(USER_PAGE.size);
-  $('usersPagerInfo').textContent = 'Menampilkan ' + (start + 1) + '–' + (start + shown) + ' dari ' + total;
+  $('usersPagerInfo').textContent = (start + 1) + '–' + (start + shown) + ' / ' + total;
   $('userPrevBtn').disabled = USER_PAGE.no <= 1;
   $('userNextBtn').disabled = USER_PAGE.no >= pages;
   $('userPages').innerHTML = pagerNumsHtml_(USER_PAGE.no, pages);

@@ -1657,3 +1657,10 @@ body.no-scroll{overflow:hidden !important;position:fixed;left:0;right:0;width:10
 body.dark #modalOrderDetail .modal-footer .btn-secondary{background:#162a3a;border-color:#2f5273;color:#a9cbee;}
 body.dark .btn-revert{background:rgba(245,158,11,.14);border-color:#a8730f;color:#fbbf6a;}
 body.dark .modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary),body.dark #confirmCancelBtn{background:rgba(239,68,68,.12);border-color:#7d3434;color:#ff9a90;}
+
+/* ===== v15: kartu statistik detail order - nilai 1 baris ===== */
+#modalOrderDetail .od-stats{grid-template-columns:minmax(0,.7fr) minmax(0,1.2fr) minmax(0,1.1fr) !important;gap:8px;}
+#modalOrderDetail .od-stat{padding:10px 12px !important;}
+#modalOrderDetail .od-stat small{white-space:nowrap;font-size:10px;letter-spacing:.06em;}
+#modalOrderDetail .od-stat b{display:block;white-space:nowrap !important;overflow-wrap:normal !important;word-break:keep-all;font-size:14px !important;font-variant-numeric:tabular-nums;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;}
+@media (max-width:360px){#modalOrderDetail .od-stat b{font-size:12.5px !important;}}

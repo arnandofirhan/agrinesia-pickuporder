@@ -1418,6 +1418,18 @@ function storeNameById(id) {
   });
   return names.join(', ') || '-';
 }
+/* Area user: pakai AreaID user bila ada, jika kosong ambil dari area store yang dimiliki user */
+function userAreaText_(u) {
+  if (u.areaId) return areaNameById(u.areaId);
+  var ids = String(u.storeId || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+  var seen = {}, names = [];
+  ids.forEach(function (sid) {
+    var s = STATE.lookup ? STATE.lookup.stores.filter(function (x) { return x.storeId === sid; })[0] : null;
+    if (s && s.areaId && !seen[s.areaId]) { seen[s.areaId] = 1; names.push(areaNameById(s.areaId)); }
+  });
+  return names.length ? names.join(', ') : '-';
+}
+
 function areaNameById(id) {
   var a = STATE.lookup ? STATE.lookup.areas.filter(function (x) { return x.areaId === id; })[0] : null;
   return a ? a.areaName : (id || '-');
@@ -1520,7 +1532,7 @@ function renderUsers() {
       '<td data-label="Username">' + esc(u.username) + '</td>' +
       '<td data-label="Role">' + roleChip(u.role) + '</td>' +
       '<td data-label="Store" class="store-cell">' + storeCellHtml_(u.storeId) + '</td>' +
-      '<td data-label="Area">' + esc(areaNameById(u.areaId)) + '</td>' +
+      '<td data-label="Area">' + esc(userAreaText_(u)) + '</td>' +
       '<td data-label="Status">' + activeBadge(u.status) + '</td>' +
       '<td data-label="Aksi"><div class="row-actions">' +
       iconActionBtn({ kind: 'view', act: 'edit-user', v: i, icon: 'edit', title: 'Edit' }) +

@@ -2,8 +2,8 @@
  * Panggilan ke Apps Script (POST / domain google) TIDAK pernah disentuh,
  * jadi data selalu real-time dan kecepatan API tidak berubah.
  * Naikkan VERSION jika ingin memaksa semua perangkat memuat ulang cache. */
-var VERSION = 'po-v4';
-var SHELL = ['./', 'index.html', 'style.css?v=4', 'config.js?v=4', 'app.js?v=4', 'manifest.json',
+var VERSION = 'po-v5';
+var SHELL = ['./', 'index.html', 'style.css?v=5', 'config.js?v=5', 'app.js?v=5', 'manifest.json',
              'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', function (e) {

@@ -1724,3 +1724,18 @@ body.dark .modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-se
   .user-name{font-size:15px;line-height:1.25;margin-bottom:3px;}
   .user-role{margin-top:0;font-size:10px;padding:2px 8px;letter-spacing:.05em;}
 }
+
+/* ===== v19: tombol Export Excel ===== */
+.th-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.btn-export{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px 0 10px;border-radius:999px;border:1.5px solid #bfdccd;
+  background:linear-gradient(135deg,#f4fbf7,#e4f4eb);color:#15603d;font-size:12px;font-weight:700;letter-spacing:.01em;cursor:pointer;
+  box-shadow:0 4px 10px -6px rgba(15,90,60,.35);transition:.15s;}
+.btn-export svg{width:14px;height:14px;}
+.btn-export:hover{background:linear-gradient(135deg,#e9f7ef,#d6eee2);border-color:#8fc4a9;transform:translateY(-1px);}
+.btn-export:active{transform:none;}
+.btn-export:disabled{opacity:.6;cursor:wait;}
+.btn-export.is-busy span::after{content:"...";}
+body.dark .btn-export{background:rgba(14,159,110,.14);border-color:#2a6a50;color:#6ee7b7;box-shadow:none;}
+#page-orders .table-head{flex-wrap:nowrap !important;}
+#page-orders .table-head .card-title{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+@media (max-width:420px){#page-orders .table-head .card-title{font-size:11px;letter-spacing:.04em;}.btn-export{padding:0 10px 0 8px;}}

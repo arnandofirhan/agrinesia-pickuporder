@@ -1664,3 +1664,37 @@ body.dark .modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-se
 #modalOrderDetail .od-stat small{white-space:nowrap;font-size:10px;letter-spacing:.06em;}
 #modalOrderDetail .od-stat b{display:block;white-space:nowrap !important;overflow-wrap:normal !important;word-break:keep-all;font-size:14px !important;font-variant-numeric:tabular-nums;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;}
 @media (max-width:360px){#modalOrderDetail .od-stat b{font-size:12.5px !important;}}
+
+/* ===== v16: filter ringkas, kartu Qty, tombol Cancel modern ===== */
+@media (max-width:900px){
+  .fc{padding:12px !important;}
+  .fc .filter-grid{gap:8px !important;}
+  .fc .filter-grid input,.fc .filter-grid select{min-height:40px !important;height:40px;font-size:14px !important;border-radius:12px;padding-left:12px;}
+  .fc .filter-grid select{padding-right:30px;background-position:right 10px center;text-overflow:ellipsis;}
+  .fc .filter-grid .search-wrap input{padding-left:38px;}
+  .fc .filter-toggle{width:40px !important;height:40px !important;border-radius:12px !important;}
+  .fc.filters-open .filter-grid>#filterStatus{grid-column:1/-1 !important;}
+  .fc.filters-open .filter-grid>select{grid-column:span 2;}
+  .fc.filters-open .filter-grid>input[type=date]{grid-column:span 2 !important;}
+  .fc.filters-open .filter-grid>.btn{min-height:38px !important;height:38px;font-size:13px;border-radius:12px;}
+}
+
+/* Qty: kolom ramping, label tidak mepet */
+#modalOrderDetail .od-stats{grid-template-columns:minmax(0,.62fr) minmax(0,1.2fr) minmax(0,1.1fr) !important;}
+#modalOrderDetail .od-stat:first-child{text-align:left;}
+#modalOrderDetail .od-stat:first-child b{font-size:16px !important;}
+
+/* Cancel: kartu putih bersih + ikon bulat, sepadan dengan tombol Simpan */
+.modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary),
+#confirmCancelBtn{background:#fff;border:1.5px solid #cfe0d6;color:#2b4a3b;border-radius:14px;gap:8px;
+  box-shadow:0 6px 14px -6px rgba(15,60,40,.22);}
+.modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary):hover,
+#confirmCancelBtn:hover{background:#f4faf7;border-color:#9fc4b0;color:#15603d;transform:translateY(-1px);}
+.modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary)::before,
+#confirmCancelBtn::before{content:"\2715";display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;
+  background:#eaf2ee;color:#4d6b5c;font-size:10px;font-weight:800;transition:.15s;}
+.modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary):hover::before,
+#confirmCancelBtn:hover::before{background:#fde4e4;color:#c0392b;}
+#modalOrderDetail .modal-footer .btn-secondary{border-radius:14px;box-shadow:0 6px 14px -6px rgba(39,73,109,.3);}
+body.dark .modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary),body.dark #confirmCancelBtn{background:#162a21;border-color:#2a4337;color:#dfeee6;box-shadow:none;}
+body.dark .modal-footer .btn-secondary[data-close]:not(#modalOrderDetail .btn-secondary)::before,body.dark #confirmCancelBtn::before{background:#1f382c;color:#9fc4b0;}

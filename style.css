@@ -1818,3 +1818,13 @@ body.dark .oc-title h4{color:#f1f8f4;}
   body.dark .app-shell .stack-table tbody tr td[data-label="Nama"],body.dark .app-shell .stack-table tbody tr td[data-label="Nama Store"],body.dark .app-shell .stack-table tbody tr td[data-label="Nama Area"],body.dark .app-shell .stack-table tbody tr td[data-label="Aksi"]{background:transparent !important;border:0 !important;}
   body.dark .app-shell .stack-table tbody tr td .cell-main{color:#f1f8f4;}
 }
+
+/* ===== v23: card tabel samakan dengan card Orders (tanpa aksen hijau permanen, aktif/hover menyala) ===== */
+@media (max-width:900px){
+  .app-shell .stack-table tbody tr{background:#fff !important;border:1px solid #dcebe3 !important;border-left:1px solid #dcebe3 !important;box-shadow:0 6px 18px rgba(6,60,42,.07) !important;transition:border-color .2s,box-shadow .2s,transform .2s;}
+  .app-shell .stack-table tbody tr:hover,.app-shell .stack-table tbody tr:active,.app-shell .stack-table tbody tr:focus-within{border-color:rgba(14,159,110,.65) !important;border-left-color:rgba(14,159,110,.65) !important;box-shadow:0 10px 24px -10px rgba(14,159,110,.40),0 0 0 3px rgba(14,159,110,.08) !important;transform:translateY(-1px);}
+  .app-shell .stack-table tbody tr td.store-cell{justify-content:flex-start !important;text-align:left !important;}
+  .app-shell .stack-table tbody tr td.store-cell::before{width:100%;}
+  body.dark .app-shell .stack-table tbody tr{background:#12201a !important;border-color:#223a2f !important;border-left-color:#223a2f !important;}
+  body.dark .app-shell .stack-table tbody tr:hover,body.dark .app-shell .stack-table tbody tr:active,body.dark .app-shell .stack-table tbody tr:focus-within{border-color:rgba(52,211,153,.55) !important;border-left-color:rgba(52,211,153,.55) !important;box-shadow:0 10px 26px -10px rgba(0,0,0,.7),0 0 0 3px rgba(52,211,153,.10) !important;}
+}

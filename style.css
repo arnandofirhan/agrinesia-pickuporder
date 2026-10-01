@@ -1557,3 +1557,19 @@ body.dark #modalRevert .rv-chip{background:#162a21;border-color:#2a4337;color:#c
 body.dark #modalRevert .rv-chip:hover{background:rgba(245,158,11,.14);color:#fbbf6a;border-color:#a8680f;}
 body.dark #modalRevert .rv-field textarea{background:#0e1914;border-color:#2a4337;color:#e8f3ed;}
 body.dark #modalRevert .rv-field textarea:focus{background:#0b1511;border-color:#f59e0b;}
+
+/* ===== Popup Batalkan Status — lebih ringkas ===== */
+#modalRevert .modal{max-width:380px;}
+#modalRevert .confirm-body{padding:22px 22px 4px;}
+#modalRevert .confirm-ico{width:54px;height:54px;margin-bottom:12px;}
+#modalRevert .confirm-ico svg{width:24px;height:24px;}
+#modalRevert .confirm-body h3{font-size:17px;margin:0 0 6px !important;}
+#modalRevert .confirm-body p{font-size:13px;}
+.rv-field{margin-top:14px;}
+#modalRevert .modal-footer{gap:8px;padding:8px 22px 20px;}
+#modalRevert .modal-footer .btn{flex:0 0 auto;min-height:40px;height:40px;padding:0 16px;font-size:13px;border-radius:12px;white-space:nowrap;gap:6px;}
+#modalRevert .modal-footer .btn.btn-secondary{flex:1 1 0;}
+#modalRevert .modal-footer .btn.btn-warn{flex:1.6 1 0;}
+#modalRevert .modal-footer .btn svg{width:14px;height:14px;}
+/* nonaktif sebelum alasan diisi */
+.btn-warn:disabled,#revertSubmitBtn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.6);box-shadow:none;transform:none;}

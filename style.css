@@ -1765,3 +1765,28 @@ body.dark .oc-title h4{color:#f1f8f4;}
   body.dark .bottom-nav{background:linear-gradient(135deg,#0a1a13,#10261c) !important;border-color:#223a2f !important;}
   body.dark .bottom-nav .nav-item.active,body.dark .bottom-nav .bn-more.active{background:rgba(52,211,153,.18) !important;color:#6ee7b7 !important;box-shadow:none !important;}
 }
+
+/* ===== v21: ikon bottom nav + card tabel (Users/Stores/Areas) ringkas ===== */
+.bottom-nav .nav-item i,.bottom-nav .nav-item svg,.bottom-nav .bn-more i,.bottom-nav .bn-more svg{color:inherit !important;stroke:currentColor !important;}
+.bottom-nav .nav-item span,.bottom-nav .bn-more span{color:inherit !important;}
+@media (max-width:900px){
+  .app-shell .stack-table tbody tr{display:grid !important;grid-template-columns:1fr 1fr;gap:6px 12px;padding:10px 12px !important;margin-bottom:8px !important;border-radius:16px;}
+  .app-shell .stack-table tbody tr td{display:block !important;width:auto !important;margin:0 !important;padding:0 !important;border:0 !important;border-radius:0 !important;text-align:left !important;min-width:0;font-size:12.5px;font-weight:700;color:var(--text);background:transparent !important;box-shadow:none !important;}
+  .app-shell .stack-table tbody tr td::before{display:block !important;margin-bottom:1px;font-size:9.5px;font-weight:800;letter-spacing:.06em;color:var(--muted);}
+  .app-shell .stack-table tbody tr td[data-label="Nama"],
+  .app-shell .stack-table tbody tr td[data-label="Username"],
+  .app-shell .stack-table tbody tr td[data-label="Store"],
+  .app-shell .stack-table tbody tr td[data-label="Nama Store"],
+  .app-shell .stack-table tbody tr td[data-label="Nama Area"]{grid-column:1/-1;}
+  .app-shell .stack-table tbody tr td[data-label="Nama"] .cell-main,
+  .app-shell .stack-table tbody tr td[data-label="Nama Store"] .cell-main,
+  .app-shell .stack-table tbody tr td[data-label="Nama Area"] .cell-main{font-size:14px;font-weight:800;}
+  .app-shell .stack-table tbody tr td.store-cell{display:block !important;}
+  .app-shell .stack-table tbody tr td[data-label="Aksi"]{grid-column:1/-1;display:flex !important;justify-content:flex-end !important;padding-top:8px !important;margin-top:2px !important;border-top:1px dashed #dbe8e1 !important;}
+  .app-shell .stack-table tbody tr td[data-label="Aksi"]::before{display:none !important;}
+  .app-shell .stack-table .row-actions{display:flex;gap:6px;}
+  .app-shell .stack-table .row-actions .act-btn{width:30px;height:30px;min-height:30px;border-radius:9px;}
+  .app-shell .stack-table .row-actions .act-btn svg{width:15px;height:15px;}
+  body.dark .app-shell .stack-table tbody tr td[data-label="Aksi"]{border-top-color:#223a2f !important;}
+  body.dark .app-shell .stack-table tbody tr td{color:#e8f3ed;}
+}

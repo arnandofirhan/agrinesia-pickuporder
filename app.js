@@ -90,6 +90,7 @@ var TITLES = { dashboard: 'Dashboard', orders: 'Orders', users: 'Users', stores:
 
 /* ============== ICONS (Lucide, 2D flat) ============== */
 var ICONS = {
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
@@ -461,6 +462,7 @@ function bindEvents() {
     $(id).addEventListener('change', rerender);
   });
   $('resetFilterBtn').addEventListener('click', resetFilters);
+  $('exportOrdersBtn').addEventListener('click', exportOrdersExcel);
   $('orderPageSize').addEventListener('change', function () { PAGE_SIZE = +this.value || 25; STATE.pageNo = 1; renderOrders(); });
   $('orderPages').addEventListener('click', function (e) {
     var b = e.target.closest ? e.target.closest('[data-pg]') : null; if (!b) return;
@@ -1824,4 +1826,113 @@ function saveArea() {
         onOk: function () { closeModal('modalAreaForm'); loadLookup(true); }
       });
     });
+}
+
+/* ============== EXPORT EXCEL (sesuai filter yang sedang aktif) ============== */
+function exportOrdersExcel() {
+  var rows = filteredOrders();
+  if (!rows.length) { showToast('Tidak ada data untuk diekspor', 'error'); return; }
+  if (typeof ExcelJS === 'undefined') { showToast('Library Excel belum termuat. Periksa koneksi internet lalu coba lagi.', 'error'); return; }
+  var btn = $('exportOrdersBtn'); btn.disabled = true; btn.classList.add('is-busy');
+  var p2 = function (n) { return ('0' + n).slice(-2); };
+  var now = new Date();
+  var stamp = now.getFullYear() + '-' + p2(now.getMonth() + 1) + '-' + p2(now.getDate());
+  var stampFull = p2(now.getDate()) + '-' + p2(now.getMonth() + 1) + '-' + now.getFullYear() + ' ' + p2(now.getHours()) + ':' + p2(now.getMinutes());
+  var f = getFilters();
+  var fl = [];
+  if (f.status) fl.push('Status: ' + statusLabel_(f.status));
+  if (f.store) fl.push('Store: ' + (f.store === '__NONE__' ? '(Tanpa Store)' : f.store));
+  if (f.area) fl.push('Area: ' + (f.area === '__NONE__' ? '(Tanpa Area)' : f.area));
+  if (f.deliveryType) fl.push('Tipe: ' + f.deliveryType);
+  if (f.date) fl.push('Tgl Kirim: ' + fmtDate(f.date));
+  if (f.search) fl.push('Pencarian: "' + f.search + '"');
+  var filterText = fl.length ? fl.join('  |  ') : 'Semua data (tanpa filter)';
+  var totQty = 0, totRev = 0;
+  rows.forEach(function (o) { totQty += Number(o.qty) || 0; totRev += Number(o.revenue) || 0; });
+
+  var wb = new ExcelJS.Workbook();
+  wb.creator = 'Agrinesia Pickup Order'; wb.created = now;
+  var ws = wb.addWorksheet('Pickup Orders', { views: [{ state: 'frozen', ySplit: 6, xSplit: 2 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } });
+  var cols = [
+    { h: 'No', w: 6, a: 'center' }, { h: 'Order Number', w: 17, a: 'left' }, { h: 'Customer', w: 22, a: 'left' },
+    { h: 'Phone', w: 16, a: 'left' }, { h: 'Store', w: 26, a: 'left' }, { h: 'Area', w: 15, a: 'left' },
+    { h: 'Hamper', w: 36, a: 'left' }, { h: 'Tipe', w: 11, a: 'center' }, { h: 'Qty', w: 8, a: 'center' },
+    { h: 'Revenue (Rp)', w: 16, a: 'right' }, { h: 'Tgl Kirim', w: 13, a: 'center' }, { h: 'Status', w: 20, a: 'center' },
+    { h: 'Diupdate Oleh', w: 17, a: 'left' }, { h: 'Diupdate Pada', w: 19, a: 'center' }
+  ];
+  var N = cols.length;
+  ws.columns = cols.map(function (c) { return { width: c.w }; });
+  var GREEN = 'FF0A6B47', LIGHT = 'FFE6F4EC', LINE = 'FFD5E3DB';
+  var thin = { style: 'thin', color: { argb: LINE } };
+  var box = { top: thin, left: thin, bottom: thin, right: thin };
+  function banner(r, text, font, fill, h) {
+    ws.mergeCells(r, 1, r, N);
+    var c = ws.getCell(r, 1); c.value = text; c.font = font;
+    c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+    if (fill) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    ws.getRow(r).height = h;
+  }
+  banner(1, 'LAPORAN PICKUP ORDER  -  AGRINESIA', { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } }, GREEN, 32);
+  banner(2, 'Diekspor: ' + stampFull + '   |   Oleh: ' + ((STATE.user && (STATE.user.name || STATE.user.username)) || '-') + ' (' + ((STATE.user && STATE.user.role) || '-') + ')', { name: 'Calibri', size: 10.5, color: { argb: 'FF3B5247' } }, LIGHT, 20);
+  banner(3, 'Filter: ' + filterText, { name: 'Calibri', size: 10.5, italic: true, color: { argb: 'FF3B5247' } }, LIGHT, 20);
+  banner(4, 'Ringkasan: ' + rows.length + ' order   |   Total Qty: ' + totQty.toLocaleString('id-ID') + '   |   Total Revenue: ' + fmtCurrency(totRev), { name: 'Calibri', size: 11, bold: true, color: { argb: GREEN } }, LIGHT, 22);
+  ws.getRow(5).height = 8;
+
+  var hr = ws.getRow(6); hr.height = 28;
+  cols.forEach(function (c, i) {
+    var cell = hr.getCell(i + 1); cell.value = c.h;
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } };
+    cell.alignment = { vertical: 'middle', horizontal: c.a === 'right' ? 'right' : 'center', wrapText: true };
+    cell.border = box;
+  });
+  var stColor = { READY_FOR_PICKUP: ['FFFEF3C7', 'FF92400E'], READY_FOR_DELIVERY: ['FFEDE9FE', 'FF5B21B6'], COMPLETED_PICKUP: ['FFDBEAFE', 'FF1E40AF'], COMPLETED_DELIVERY: ['FFCCFBF1', 'FF0F766E'] };
+  rows.forEach(function (o, i) {
+    var r = ws.getRow(7 + i); r.height = 21;
+    var vals = [i + 1, o.orderReference || '-', o.customer || '-', String(o.phone || '-'), o.outletName || '-', o.area || '-', o.hamperName || '-', o.deliveryType || '-',
+      Number(o.qty) || 0, Number(o.revenue) || 0, fmtDate(o.deliveryDate) || '-', statusLabel_(o.pickupStatus), o.updatedBy || '-', fmtDate(o.updatedAt) || '-'];
+    vals.forEach(function (v, j) {
+      var cell = r.getCell(j + 1); cell.value = v; cell.border = box;
+      cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF1B2B23' } };
+      cell.alignment = { vertical: 'middle', horizontal: cols[j].a, indent: cols[j].a === 'center' ? 0 : 1, wrapText: j === 6 };
+      if (i % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF6FAF8' } };
+      if (j === 3) cell.numFmt = '@';
+      if (j === 9) cell.numFmt = '#,##0';
+      if (j === 8) cell.numFmt = '#,##0';
+    });
+    var sc = stColor[o.pickupStatus];
+    if (sc) { var s = r.getCell(12); s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: sc[0] } }; s.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: sc[1] } }; }
+  });
+  var tr = ws.getRow(7 + rows.length); tr.height = 24;
+  for (var k = 1; k <= N; k++) {
+    var tc = tr.getCell(k); tc.border = { top: { style: 'medium', color: { argb: GREEN } }, bottom: thin, left: thin, right: thin };
+    tc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT } };
+    tc.font = { name: 'Calibri', size: 11, bold: true, color: { argb: GREEN } };
+    tc.alignment = { vertical: 'middle', horizontal: 'center' };
+  }
+  ws.mergeCells(7 + rows.length, 1, 7 + rows.length, 8);
+  var lab = tr.getCell(1); lab.value = 'TOTAL'; lab.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+  tr.getCell(9).value = totQty; tr.getCell(9).numFmt = '#,##0';
+  tr.getCell(10).value = totRev; tr.getCell(10).numFmt = '#,##0'; tr.getCell(10).alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+  ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: 6, column: N } };
+  ws.headerFooter.oddFooter = '&LAgrinesia Pickup Order&RHalaman &P / &N';
+
+  function slug(s) { return String(s).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  var parts = ['Pickup-Order'];
+  if (f.status) parts.push(slug(statusLabel_(f.status)));
+  if (f.store && f.store !== '__NONE__') parts.push(slug(f.store));
+  else if (!isAdmin() && STATE.user && STATE.user.storeName) parts.push(slug(STATE.user.storeName));
+  if (f.area && f.area !== '__NONE__') parts.push(slug(f.area));
+  if (f.deliveryType) parts.push(slug(f.deliveryType));
+  parts.push(stamp + '_' + p2(now.getHours()) + p2(now.getMinutes()));
+  var fname = parts.join('_').slice(0, 120) + '.xlsx';
+
+  wb.xlsx.writeBuffer().then(function (buf) {
+    var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    showToast('Export berhasil: ' + rows.length + ' order', 'success');
+  }).catch(function () { showToast('Gagal membuat file Excel', 'error'); })
+    .then(function () { btn.disabled = false; btn.classList.remove('is-busy'); });
 }

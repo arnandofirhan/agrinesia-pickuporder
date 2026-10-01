@@ -389,6 +389,7 @@ function bindEvents() {
     var pop = $('notifPopover');
     if (!pop || !pop.classList.contains('open')) return;
     if (pop.contains(e.target) || $('bellBtn').contains(e.target)) return;
+    if (e.composedPath && e.composedPath().indexOf(pop) !== -1) return;
     closeNotifPopover();
   });
 
@@ -475,6 +476,8 @@ function bindEvents() {
     if (act === 'detail') openOrderDetail(v);
     else if (act === 'notif-detail') { markNotifRead_(v); closeNotifPopover(); openOrderDetail(v); }
     else if (act === 'notif-viewall') { closeNotifPopover(); goOrders({ status: '' }); }
+    else if (act === 'notif-readall') { markAllNotifRead_(); }
+    else if (act === 'notif-tab') { STATE.notifTab = v || 'all'; renderNotifPopover(); }
     else if (act === 'edit-user') openUserForm(STATE.users[+v]);
     else if (act === 'toggle-user') toggleUserStatus(STATE.users[+v], el);
     else if (act === 'delete-user') askDeleteUser(STATE.users[+v]);
@@ -973,23 +976,62 @@ function closeNotifPopover() {
   var pop = $('notifPopover');
   if (pop) pop.classList.remove('open');
 }
+function markAllNotifRead_() {
+  notifList_().forEach(function (o) { STATE.notifRead[o.orderReference] = true; });
+  saveNotifRead_();
+  updateBell();
+}
 function renderNotifPopover() {
   var pop = $('notifPopover');
   if (!pop) return;
   var full = notifList_();
-  var list = full.slice(0, 8);
-  var unreadCount = full.filter(function (o) { return !STATE.notifRead[o.orderReference]; }).length;
-  var body = !list.length ? '<div class="notif-empty">' + ic('bell', 'lg') + '<p>Tidak ada order menunggu diproses.</p></div>' :
-    list.map(function (o) {
-      var delivery = isDeliveryOrder(o);
-      var label = delivery ? 'Menunggu Pengiriman' : 'Menunggu Pengambilan';
-      var read = !!STATE.notifRead[o.orderReference];
-      return '<div class="notif-item clickable ' + (read ? 'is-read' : 'is-unread') + '" data-act="notif-detail" data-v="' + esc(o.orderReference) + '">' +
-        '<span class="notif-dot ' + (delivery ? 'purple' : 'orange') + '"></span>' +
-        '<div><b>' + esc(label) + '</b><p>Order <span class="mono">' + esc(o.orderReference) + '</span> - ' + esc(o.customer) + '</p></div></div>';
+  var tab = STATE.notifTab || 'all';
+  var isUnread = function (o) { return !STATE.notifRead[o.orderReference]; };
+  var unreadCount = full.filter(isUnread).length;
+  var nDel = full.filter(isDeliveryOrder).length, nPick = full.length - nDel;
+  var filtered = full.filter(function (o) { return tab === 'all' || (tab === 'delivery' ? isDeliveryOrder(o) : !isDeliveryOrder(o)); });
+  // belum dibaca tampil duluan
+  filtered = filtered.map(function (o, i) { return { o: o, i: i }; }).sort(function (a, b) {
+    return (isUnread(b.o) - isUnread(a.o)) || (a.i - b.i);
+  }).map(function (x) { return x.o; });
+  var list = filtered.slice(0, 8);
+
+  var tabs = [['all', 'Semua', full.length], ['delivery', 'Pengiriman', nDel], ['pickup', 'Pengambilan', nPick]]
+    .map(function (t) {
+      return '<button type="button" class="nf-tab' + (tab === t[0] ? ' on' : '') + '" data-act="notif-tab" data-v="' + t[0] + '">' + t[1] + '<i>' + t[2] + '</i></button>';
     }).join('');
-  var foot = full.length ? '<div class="notif-foot"><a data-act="notif-viewall">Lihat Semua</a></div>' : '';
-  pop.innerHTML = '<div class="notif-head"><b>Notifikasi</b><span class="notif-count">' + unreadCount + ' baru</span></div><div class="notif-body">' + body + '</div>' + foot;
+
+  var body;
+  if (!list.length) {
+    body = '<div class="nf-empty"><div class="nf-empty-ic">' + ic('check', 'lg') + '</div><b>Semua beres!</b><p>Tidak ada order yang menunggu diproses.</p></div>';
+  } else {
+    body = list.map(function (o) {
+      var delivery = isDeliveryOrder(o);
+      var unread = isUnread(o);
+      var cust = String(o.customer || '').trim();
+      var dt = fmtDate(o.deliveryDate);
+      var meta = [];
+      if (o.hamperName) meta.push('<span class="nf-chip">' + ic('package', 'sm') + esc(o.hamperName) + '</span>');
+      if (o.qty !== undefined && o.qty !== '') meta.push('<span class="nf-chip">' + esc(o.qty) + ' pcs</span>');
+      if (dt) meta.push('<span class="nf-chip">' + ic('orders', 'sm') + esc(dt) + '</span>');
+      return '<div class="nf-item ' + (unread ? 'is-unread' : 'is-read') + ' ' + (delivery ? 'is-del' : 'is-pick') + '" data-act="notif-detail" data-v="' + esc(o.orderReference) + '" tabindex="0" role="button">' +
+        '<div class="nf-ico">' + ic(delivery ? 'truck' : 'package') + '</div>' +
+        '<div class="nf-main">' +
+          '<div class="nf-row"><b class="nf-title">' + (delivery ? 'Menunggu Pengiriman' : 'Menunggu Pengambilan') + '</b>' + (unread ? '<span class="nf-new"></span>' : '') + '</div>' +
+          '<div class="nf-sub"><span class="nf-ref">#' + esc(String(o.orderReference).replace(/^#/, '')) + '</span>' + (cust && cust !== '-' ? '<span class="nf-sep"></span><span class="nf-cust">' + esc(cust) + '</span>' : '') + '</div>' +
+          (meta.length ? '<div class="nf-meta">' + meta.join('') + '</div>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  var head = '<div class="nf-head">' +
+      '<div class="nf-head-top"><div class="nf-head-title"><span class="nf-head-ic">' + ic('bell') + '</span><div><b>Notifikasi</b><small>' + (unreadCount ? unreadCount + ' belum dibaca' : 'Semua sudah dibaca') + '</small></div></div>' +
+      (unreadCount ? '<button type="button" class="nf-readall" data-act="notif-readall">' + ic('check', 'sm') + 'Tandai dibaca</button>' : '') + '</div>' +
+      '<div class="nf-tabs">' + tabs + '</div>' +
+    '</div>';
+  var foot = full.length ? '<div class="nf-foot"><a data-act="notif-viewall">Lihat semua order ' + ic('chevRight', 'sm') + '</a></div>' : '';
+  pop.innerHTML = head + '<div class="notif-body nf-body">' + body + '</div>' + foot;
 }
 
 /* ============== ORDERS ============== */

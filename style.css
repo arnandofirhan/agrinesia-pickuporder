@@ -1876,3 +1876,10 @@ body.dark .od-tl-item:not(:last-child)::before{background:#223a2f;}
   .pager2-pages{gap:3px;}
   .pager2-info{font-size:11.5px;}
 }
+
+/* Riwayat: badge status asal -> tujuan selalu 1 baris, tidak terpotong */
+.od-tl-flow{flex-wrap:nowrap;gap:4px;}
+.od-tl-flow .badge{font-size:10px;padding:3px 7px;gap:4px;flex:0 1 auto;min-width:0;}
+.od-tl-flow .badge::before{width:5px;height:5px;}
+.od-tl-arrow{flex:none;font-size:12px;}
+@media (max-width:380px){.od-tl-flow .badge{font-size:9.5px;padding:3px 6px;}.od-tl-flow .badge::before{display:none;}}

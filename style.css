@@ -1828,3 +1828,10 @@ body.dark .oc-title h4{color:#f1f8f4;}
   body.dark .app-shell .stack-table tbody tr{background:#12201a !important;border-color:#223a2f !important;border-left-color:#223a2f !important;}
   body.dark .app-shell .stack-table tbody tr:hover,body.dark .app-shell .stack-table tbody tr:active,body.dark .app-shell .stack-table tbody tr:focus-within{border-color:rgba(52,211,153,.55) !important;border-left-color:rgba(52,211,153,.55) !important;box-shadow:0 10px 26px -10px rgba(0,0,0,.7),0 0 0 3px rgba(52,211,153,.10) !important;}
 }
+
+/* ===== v25: bottom nav dark mode berbeda dari latar ===== */
+@media (max-width:900px){
+  body.dark .bottom-nav{background:linear-gradient(135deg,#17694b,#0f4a35) !important;border:1px solid rgba(110,231,183,.28) !important;box-shadow:0 14px 32px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4),0 -2px 18px rgba(52,211,153,.12) !important;}
+  body.dark .bottom-nav .nav-item,body.dark .bottom-nav .bn-more{color:#bfe6d3 !important;}
+  body.dark .bottom-nav .nav-item.active,body.dark .bottom-nav .bn-more.active,body.dark .bottom-nav .bn-more[aria-expanded="true"]{background:linear-gradient(135deg,#6ee7b7,#34d399) !important;color:#053b27 !important;box-shadow:0 6px 16px -6px rgba(52,211,153,.6) !important;}
+}

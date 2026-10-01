@@ -1479,3 +1479,9 @@ html:has(#loginPage:not(.hidden)),body:has(#loginPage:not(.hidden)){overflow:hid
 .lg-row{display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;align-items:center !important;justify-content:space-between !important;gap:8px !important;}
 .lg-row .lg-check{white-space:nowrap;flex-shrink:0;}
 .lg-row .lg-help{white-space:nowrap;text-align:right;font-size:clamp(10.5px,3vw,12px);}
+
+/* LOGIN — kunci mati (penyebab scroll: blob dekoratif yang keluar layar membuat area bisa digeser) */
+.login-page{overflow:hidden !important;overflow:clip !important;touch-action:none;overscroll-behavior:none;}
+.login-page input,.login-page button,.login-page label,.login-page a{touch-action:manipulation;}
+html:has(#loginPage:not(.hidden)),body:has(#loginPage:not(.hidden)){overflow:hidden !important;overscroll-behavior:none !important;position:fixed;inset:0;width:100%;}
+.lg-blob{max-width:100vw;}

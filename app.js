@@ -90,6 +90,7 @@ var TITLES = { dashboard: 'Dashboard', orders: 'Orders', users: 'Users', stores:
 
 /* ============== ICONS (Lucide, 2D flat) ============== */
 var ICONS = {
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
   wallet: '<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M21 12v4h-5a2 2 0 0 1 0-4z"/>',
@@ -515,6 +516,9 @@ function bindEvents() {
     else if (act === 'jump-store') goOrders({ store: v });
     else if (act === 'jump-area') goOrders({ area: v });
     else if (act === 'complete') { var co = findOrder(v); if (co) askComplete(co); }
+    else if (act === 'revert') { var ro = findOrder(v); if (ro) askRevert(ro); }
+    else if (act === 'revert-chip') { $('revertReason').value = v; $('revertErr').classList.add('hidden'); $('revertReason').focus(); }
+    else if (act === 'revert-submit') submitRevert();
     else if (act === 'retry') {
       if (v === 'dashboard') { STATE.stats = null; loadDashboard(true); }
       else if (v === 'orders') { navigateTo('orders'); loadOrders(true); }
@@ -1109,6 +1113,12 @@ function filteredOrders() {
   });
 }
 
+// Admin saja: batalkan status selesai (tombol hanya muncul untuk order yang sudah selesai)
+function revertBtn(o, iconOnly) {
+  if (!isAdmin() || isReadyStatus(o.pickupStatus)) return '';
+  if (iconOnly) return iconActionBtn({ kind: 'warn', act: 'revert', v: o.orderReference, icon: 'undo', title: 'Batalkan Status Selesai' });
+  return '<button class="btn btn-block btn-warn-outline" style="margin-top:8px" data-act="revert" data-v="' + esc(o.orderReference) + '">' + ic('undo', 'sm') + ' Batalkan Status Selesai</button>';
+}
 function completeBtn(o, iconOnly) {
   if (!isReadyStatus(o.pickupStatus)) return '';
   var delivery = isDeliveryOrder(o);
@@ -1154,7 +1164,7 @@ function renderOrders(keepScroll) {
       '<td class="nw">' + typeChip(o.deliveryType) + '</td>' +
       '<td class="nw">' + (fmtDate(o.deliveryDate) ? esc(fmtDate(o.deliveryDate)) : '<span class="muted-dash">-</span>') + '</td>' +
       '<td>' + statusBadge(o.pickupStatus) + '</td>' +
-      '<td><div class="row-actions">' + iconActionBtn({ kind: 'view', act: 'detail', v: o.orderReference, icon: 'eye', title: 'View Detail' }) + completeBtn(o, true) + '</div></td>' +
+      '<td><div class="row-actions">' + iconActionBtn({ kind: 'view', act: 'detail', v: o.orderReference, icon: 'eye', title: 'View Detail' }) + completeBtn(o, true) + revertBtn(o, true) + '</div></td>' +
       '</tr>';
   }).join('');
 
@@ -1167,7 +1177,7 @@ function renderOrders(keepScroll) {
       '<div class="oc-row"><span>Qty</span><span>' + esc(o.qty) + '</span></div>' +
       '<div class="oc-row"><span>Tipe</span><span>' + esc(o.deliveryType) + '</span></div>' +
       '<div class="oc-row"><span>Tgl Kirim</span><span>' + esc(fmtDate(o.deliveryDate)) + '</span></div>' +
-      '<button class="btn btn-outline btn-block" data-act="detail" data-v="' + esc(o.orderReference) + '">' + ic('eye', 'sm') + ' View Detail</button>' + completeBtn(o, false) +
+      '<button class="btn btn-outline btn-block" data-act="detail" data-v="' + esc(o.orderReference) + '">' + ic('eye', 'sm') + ' View Detail</button>' + completeBtn(o, false) + revertBtn(o, false) +
       '</div>';
   }).join('');
 
@@ -1241,8 +1251,10 @@ function renderOrderDetail(o) {
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
     $('markCompleteBtn').addEventListener('click', function () { askComplete(o); });
   } else {
-    f.innerHTML = '<span class="hint" style="margin-right:auto;align-self:center">Order sudah selesai diproses.</span><button class="btn btn-secondary" data-close>Close</button>';
+    var undoHtml = isAdmin() ? '<button class="btn btn-warn-outline" id="detailRevertBtn" style="margin-right:auto">' + ic('undo', 'sm') + ' Batalkan Status</button>' : '<span class="hint" style="margin-right:auto;align-self:center">Order sudah selesai diproses.</span>';
+    f.innerHTML = undoHtml + '<button class="btn btn-secondary" data-close>Close</button>';
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
+    if ($('detailRevertBtn')) $('detailRevertBtn').addEventListener('click', function () { askRevert(o); });
   }
 }
 
@@ -1280,6 +1292,45 @@ function completeOrder(ref) {
       closeAllModals();
       loadOrders(true); loadDashboard(true); // sinkronisasi diam-diam dengan server
     }
+  });
+}
+/* ============== BATALKAN STATUS SELESAI (ADMIN) ============== */
+var REVERT_REF = null;
+function statusLabel_(s) { return String(s || '').toLowerCase().split('_').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
+function askRevert(o) {
+  if (!isAdmin()) { showToast('Hanya Admin yang dapat membatalkan status.', 'warning'); return; }
+  REVERT_REF = o.orderReference;
+  var target = isDeliveryOrder(o) ? 'Ready for Delivery' : 'Ready for Pickup';
+  $('revertMsg').innerHTML = 'Order <b>' + esc(o.orderReference) + '</b> (' + esc(o.customer || '-') + ') akan dikembalikan dari <b>' + esc(statusLabel_(o.pickupStatus)) + '</b> ke <b>' + target + '</b>.<br><small>Tgl Kirim dikosongkan, riwayat tetap tercatat.</small>';
+  $('revertReason').value = '';
+  $('revertErr').classList.add('hidden');
+  openModal('modalRevert');
+  setTimeout(function () { try { $('revertReason').focus(); } catch (e) {} }, 250);
+}
+function submitRevert() {
+  var reason = $('revertReason').value.trim();
+  if (reason.length < 3) { $('revertErr').classList.remove('hidden'); $('revertReason').focus(); return; }
+  var ref = REVERT_REF;
+  closeModal('modalRevert');
+  runAction({
+    processing: 'Membatalkan status...',
+    call: 'revertOrderStatus', args: [STATE.token, ref, reason],
+    okMsg: 'Status order dikembalikan',
+    errMsg: 'Gagal membatalkan status order.',
+    onOk: function (res) {
+      var o = findOrder(ref);
+      var prev = o ? o.pickupStatus : '';
+      var ns = res.data.newStatus;
+      if (o) { o.pickupStatus = ns; o.deliveryDate = ''; o.updatedBy = ''; o.updatedAt = nowStamp(); }
+      if (STATE.stats) {
+        if (prev === 'COMPLETED_PICKUP') STATE.stats.completedPickup = Math.max(0, STATE.stats.completedPickup - 1);
+        if (prev === 'COMPLETED_DELIVERY') STATE.stats.completedDelivery = Math.max(0, STATE.stats.completedDelivery - 1);
+        if (ns === 'READY_FOR_PICKUP') STATE.stats.readyForPickup++;
+        if (ns === 'READY_FOR_DELIVERY') STATE.stats.readyForDelivery++;
+      }
+      renderOrders(); renderDashboard_safe(); updateBell();
+    },
+    after: function () { closeAllModals(); loadOrders(true); loadDashboard(true); }
   });
 }
 function renderDashboard_safe() { if (STATE.stats) renderDashboard(); }

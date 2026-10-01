@@ -1418,3 +1418,44 @@ body.dark .nf-empty p{color:#97afa3;}
   .nf-body{max-height:none;}
   .nf-title{font-size:14px;}
 }
+/* =====================================================================
+   PERFORMANCE FIX — scroll smooth (desktop & PWA)
+   Tidak mengubah tampilan secara berarti; hanya membuang efek yang
+   memaksa browser menggambar ulang seluruh layar di setiap frame scroll.
+   ===================================================================== */
+
+/* 1) background-attachment:fixed = penyebab utama lag. Pindah ke layer fixed tersendiri (GPU) */
+body{background:var(--bg) !important;background-attachment:scroll !important;}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;transform:translateZ(0);
+  background:radial-gradient(900px 500px at 100% -10%,rgba(43,196,138,.13),transparent 60%),radial-gradient(700px 420px at -10% 110%,rgba(245,185,74,.10),transparent 60%);}
+body.dark{background:#08110d !important;}
+body.dark::before{display:none;}
+
+/* 2) Header sticky: backdrop-filter blur dihitung ulang tiap frame scroll -> ganti warna solid */
+.header{-webkit-backdrop-filter:none !important;backdrop-filter:none !important;background:rgba(255,255,255,.97) !important;transform:translateZ(0);}
+body.dark .app-shell .header{background:#0c1611 !important;}
+
+/* 3) Overlay/modal: blur hanya saat popup terbuka */
+.modal-overlay,.proc-overlay{-webkit-backdrop-filter:none !important;backdrop-filter:none !important;}
+.modal-overlay.open,.proc-overlay.open{-webkit-backdrop-filter:blur(3px) !important;backdrop-filter:blur(3px) !important;}
+
+/* 4) Kartu KPI: buang mask-image & blur, bayangan lebih ringan, isolasi paint */
+.kpi::before,.kpi.kpi-gold.kpi-wide::before{-webkit-mask-image:none !important;mask-image:none !important;opacity:.3 !important;}
+.kpi:hover::before{opacity:.3 !important;}
+.kpi-icon{-webkit-backdrop-filter:none !important;backdrop-filter:none !important;}
+.kpi,.kpi.kpi-gold.kpi-wide{box-shadow:0 8px 16px -10px var(--k1) !important;contain:layout paint;}
+.kpi:hover,.kpi.kpi-gold.kpi-wide:hover{box-shadow:0 12px 20px -10px var(--k1) !important;}
+body.dark .app-shell .kpi,body.dark .app-shell .kpi:hover{box-shadow:none !important;}
+
+/* 5) Banner: jam berdetak tiap detik, hindari repaint text-shadow blur */
+.banner{contain:paint;}
+.banner-clock{text-shadow:none !important;}
+
+/* 6) Bottom nav (HP) */
+@media (max-width:900px){
+  .bottom-nav{-webkit-backdrop-filter:none !important;backdrop-filter:none !important;background:rgba(255,255,255,.97) !important;}
+  body.dark .bottom-nav{background:rgba(14,26,20,.97) !important;}
+}
+
+/* 7) Scroll lebih halus pada area yang bisa di-scroll sendiri */
+.nf-body,.notif-body,.modal-body,.table-wrapper,.sidebar-nav{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}

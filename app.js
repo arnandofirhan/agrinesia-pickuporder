@@ -9,7 +9,12 @@
 (function () {
   'use strict';
 
-  function callServer(fn, args) {
+  // Hanya fungsi BACA yang boleh diulang otomatis (aman, tidak menggandakan data).
+  // Fungsi tulis (create/update/delete/login) tidak pernah diulang.
+  var SAFE_RETRY = /^(get|validate|ping)/;
+
+  function callServer(fn, args, attempt) {
+    attempt = attempt || 0;
     var url = window.API_URL;
     if (!url || /PASTE_URL/.test(url)) {
       return Promise.reject(new Error('API_URL belum diisi di config.js'));
@@ -20,12 +25,20 @@
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ fn: fn, args: args })
     }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (!r.ok) { var he = new Error('HTTP ' + r.status); he.transient = true; throw he; }
       return r.json();
     }).then(function (j) {
       // Server melempar exception (setara failure handler pada google.script.run)
       if (j && j.__gas_error) throw new Error(j.message || 'Server error');
       return j;
+    }).catch(function (err) {
+      // Gangguan sesaat (HTTP 404/5xx dari Google, jaringan putus) pada fungsi baca -> coba lagi otomatis
+      var transient = err && (err.transient || err.name === 'TypeError');
+      if (transient && SAFE_RETRY.test(fn) && attempt < 2) {
+        return new Promise(function (res) { setTimeout(res, 500 * (attempt + 1)); })
+          .then(function () { return callServer(fn, args, attempt + 1); });
+      }
+      throw err;
     });
   }
 

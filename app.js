@@ -363,23 +363,23 @@ document.addEventListener('DOMContentLoaded', function () {
   if (!saved) { $('bootSplash').classList.add('hidden'); showLogin(); return; }
 
   STATE.token = saved;
+  var cachedUser = null;
+  try { cachedUser = JSON.parse(sessGet('pom_user') || 'null'); } catch (e) {}
+  var instant = !!(cachedUser && cachedUser.username);
+  if (instant) { $('bootSplash').classList.add('hidden'); restoreSessionUI(cachedUser); }   // topbar & bottom menu langsung tampil, hanya data yang memuat
   google.script.run
     .withSuccessHandler(function (res) {
       $('bootSplash').classList.add('hidden');
       if (res.success) {
-        // validateSession tidak mengembalikan nama/store; ambil dari cache sesi bila ada
-        var cached = null;
-        try { cached = JSON.parse(sessGet('pom_user') || 'null'); } catch (e) {}
-        restoreSessionUI(cached || { name: res.data.username, username: res.data.username, role: res.data.role, storeId: res.data.storeId, storeName: '', areaId: res.data.areaId });
+        if (!instant) restoreSessionUI({ name: res.data.username, username: res.data.username, role: res.data.role, storeId: res.data.storeId, storeName: '', areaId: res.data.areaId });
       } else {
-        sessDel('pom_token'); sessDel('pom_user');
+        sessDel('pom_token'); sessDel('pom_user'); sessDel('pom_page');
         showLogin();
       }
     })
     .withFailureHandler(function () {
       $('bootSplash').classList.add('hidden');
-      var c2 = null; try { c2 = JSON.parse(sessGet('pom_user') || 'null'); } catch (e) {}
-      if (c2 && c2.username) restoreSessionUI(c2); else showLogin();   // jaringan lemah != sesi habis
+      if (!instant) showLogin();   // jaringan lemah != sesi habis
     })
     .validateSession(STATE.token);
 });
@@ -668,12 +668,18 @@ function restoreSessionUI(data) {
   if (!isAdmin()) document.querySelectorAll('.admin-only').forEach(function (el) { el.classList.add('hidden'); });
   tickClock();
 
-  // Prefetch paralel di background; UI langsung tampil dengan skeleton (termasuk Users agar tidak loading saat dibuka pertama kali)
+  // Buka halaman terakhir (mis. tetap di Orders saat refresh); hanya data halaman itu yang dimuat
+  var startPage = store('pom_page');
+  if (!startPage || !TITLES[startPage]) startPage = 'dashboard';
   loadLookup(true);
-  loadOrders(true);
-  if (isAdmin()) loadUsers(true);
   loadNotifRead_();
-  navigateTo('dashboard');
+  if (startPage === 'dashboard') {
+    loadOrders(true);
+    if (isAdmin()) loadUsers(true);
+  } else if (startPage !== 'orders') {
+    loadOrders(true);   // data bell notifikasi
+  }
+  navigateTo(startPage);
 }
 
 function handleLogout() {
@@ -709,7 +715,7 @@ function doLogout() {
   // Instan: langsung ke halaman login, invalidasi sesi di server berjalan di background (tanpa menunggu)
   var token = STATE.token;
   closeAllModals();
-  sessDel('pom_token'); sessDel('pom_user');
+  sessDel('pom_token'); sessDel('pom_user'); sessDel('pom_page');
   resetToLogin();
   try { google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).logout(token); } catch (e) {}
 }
@@ -728,7 +734,7 @@ function toggleMoreSheet_(force) {
 }
 function navigateTo(page) {
   if (ADMIN_PAGES.indexOf(page) !== -1 && !isAdmin()) page = 'dashboard';
-  STATE.page = page;
+  STATE.page = page; store('pom_page', page);
   document.querySelectorAll('.page').forEach(function (p) { p.classList.add('hidden'); });
   $('page-' + page).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.toggle('active', n.getAttribute('data-page') === page); });
@@ -1153,7 +1159,7 @@ function renderOrders(keepScroll) {
   if (!STATE.orders) { // skeleton (hanya saat benar-benar belum ada data)
     var sk = ''; for (var i = 0; i < 6; i++) sk += '<tr><td colspan="10"><span class="sk" style="height:16px"></span></td></tr>';
     tbody.innerHTML = sk;
-    list.innerHTML = '<div class="sk" style="height:150px;border-radius:10px"></div><div class="sk" style="height:150px;border-radius:10px"></div>';
+    list.innerHTML = '<div class="sk" style="height:112px;border-radius:16px"></div><div class="sk" style="height:112px;border-radius:16px;margin-top:8px"></div><div class="sk" style="height:112px;border-radius:16px;margin-top:8px"></div>';
     empty.classList.add('hidden'); pager.classList.add('hidden');
     return;
   }

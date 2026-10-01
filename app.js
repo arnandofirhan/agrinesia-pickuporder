@@ -517,7 +517,7 @@ function bindEvents() {
     else if (act === 'jump-area') goOrders({ area: v });
     else if (act === 'complete') { var co = findOrder(v); if (co) askComplete(co); }
     else if (act === 'revert') { var ro = findOrder(v); if (ro) askRevert(ro); }
-    else if (act === 'revert-chip') { $('revertReason').value = v; $('revertErr').classList.add('hidden'); $('revertReason').focus(); }
+    else if (act === 'revert-chip') { $('revertReason').value = v; syncRevertBtn(); $('revertReason').focus(); }
     else if (act === 'revert-submit') submitRevert();
     else if (act === 'retry') {
       if (v === 'dashboard') { STATE.stats = null; loadDashboard(true); }
@@ -1304,12 +1304,19 @@ function askRevert(o) {
   $('revertMsg').innerHTML = 'Order <b>' + esc(o.orderReference) + '</b> (' + esc(o.customer || '-') + ') akan dikembalikan dari <b>' + esc(statusLabel_(o.pickupStatus)) + '</b> ke <b>' + target + '</b>.<br><small>Tgl Kirim dikosongkan, riwayat tetap tercatat.</small>';
   $('revertReason').value = '';
   $('revertErr').classList.add('hidden');
+  syncRevertBtn();
   openModal('modalRevert');
   setTimeout(function () { try { $('revertReason').focus(); } catch (e) {} }, 250);
 }
+// Tombol 'Kembalikan Status' nonaktif selama alasan belum diisi
+function syncRevertBtn() {
+  var ok = $('revertReason').value.trim().length >= 3;
+  $('revertSubmitBtn').disabled = !ok;
+}
+document.addEventListener('input', function (e) { if (e.target && e.target.id === 'revertReason') syncRevertBtn(); });
 function submitRevert() {
   var reason = $('revertReason').value.trim();
-  if (reason.length < 3) { $('revertErr').classList.remove('hidden'); $('revertReason').focus(); return; }
+  if (reason.length < 3) { syncRevertBtn(); return; }
   var ref = REVERT_REF;
   closeModal('modalRevert');
   runAction({

@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 
@@ -332,12 +332,12 @@
           <button type="button" class="rv-chip" data-act="revert-chip" data-v="Salah order / duplikat">Salah order</button>
         </div>
         <textarea id="revertReason" rows="2" maxlength="300" placeholder="Tulis alasan singkat..."></textarea>
-        <div class="rv-err hidden" id="revertErr">Alasan wajib diisi (min. 3 karakter).</div>
+        <div class="rv-err hidden" id="revertErr"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-close>Batal</button>
-      <button class="btn btn-warn" id="revertSubmitBtn" data-act="revert-submit"><i data-ic="undo" data-size="sm"></i> Kembalikan Status</button>
+      <button class="btn btn-warn" id="revertSubmitBtn" data-act="revert-submit" disabled><i data-ic="undo" data-size="sm"></i> Kembalikan Status</button>
     </div>
   </div>
 </div>
@@ -407,8 +407,8 @@
   </div>
 </div>
 
-<script src="config.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="config.js?v=11"></script>
+<script src="app.js?v=11"></script>
 <script>if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 </body>
 </html>

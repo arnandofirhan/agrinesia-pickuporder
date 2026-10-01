@@ -1189,15 +1189,13 @@ function renderOrders(keepScroll) {
   }).join('');
 
   list.innerHTML = rows.map(function (o) {
-    return '<div class="order-card">' +
+    var viewBtn = iconActionBtn({ kind: 'view', act: 'detail', v: o.orderReference, icon: 'eye', title: 'View Detail' });
+    function cell(l, v, wide) { return '<div class="oc-cell' + (wide ? ' oc-wide' : '') + '"><small>' + l + '</small><b>' + esc(v == null || v === '' ? '-' : v) + '</b></div>'; }
+    return '<div class="order-card oc-compact">' +
       '<div class="order-card-top"><span class="mono">' + esc(o.orderReference) + '</span>' + statusBadge(o.pickupStatus) + '</div>' +
-      '<h4>' + esc(o.customer) + '</h4>' +
-      '<div class="oc-row"><span>Store</span><span>' + esc(o.outletName) + '</span></div>' +
-      '<div class="oc-row"><span>Hamper</span><span>' + esc(o.hamperName) + '</span></div>' +
-      '<div class="oc-row"><span>Qty</span><span>' + esc(o.qty) + '</span></div>' +
-      '<div class="oc-row"><span>Tipe</span><span>' + esc(o.deliveryType) + '</span></div>' +
-      '<div class="oc-row"><span>Tgl Kirim</span><span>' + esc(fmtDate(o.deliveryDate)) + '</span></div>' +
-      '<button class="btn btn-outline btn-block" data-act="detail" data-v="' + esc(o.orderReference) + '">' + ic('eye', 'sm') + ' View Detail</button>' + completeBtn(o, false) + revertBtn(o, false) +
+      '<div class="oc-title"><h4>' + esc(o.customer) + '</h4><div class="oc-actions">' + viewBtn + completeBtn(o, true) + revertBtn(o, true) + '</div></div>' +
+      '<div class="oc-grid">' + cell('Store', o.outletName, true) + cell('Hamper', o.hamperName, true) +
+      cell('Tipe', o.deliveryType) + cell('Qty', o.qty) + cell('Tgl Kirim', fmtDate(o.deliveryDate)) + '</div>' +
       '</div>';
   }).join('');
 

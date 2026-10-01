@@ -1246,7 +1246,7 @@ function renderOrderDetail(o) {
     '</div>' +
 
     '<div class="od-stats">' +
-      '<div class="od-stat"><small>Quantity</small><b>' + esc(o.qty) + '</b></div>' +
+      '<div class="od-stat"><small>Qty</small><b>' + esc(o.qty) + '</b></div>' +
       '<div class="od-stat"><small>Revenue</small><b>' + esc(fmtCurrency(o.revenue)) + '</b></div>' +
       '<div class="od-stat"><small>Tgl Kirim</small><b>' + esc(fmtDate(o.deliveryDate) || '-') + '</b></div>' +
     '</div>' +

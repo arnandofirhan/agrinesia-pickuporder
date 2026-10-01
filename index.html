@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 
@@ -182,7 +182,7 @@
           </div>
         </div>
         <div class="card">
-          <div class="table-head"><h3 class="card-title">Daftar Pickup Order</h3><span class="count-pill" id="ordersCount">0 order</span></div>
+          <div class="table-head"><h3 class="card-title">Daftar Pickup Order</h3><div class="th-right"><span class="count-pill" id="ordersCount">0 order</span><button type="button" class="btn-export" id="exportOrdersBtn" title="Export ke Excel" aria-label="Export ke Excel"><i data-ic="download" data-size="sm"></i><span>Export</span></button></div></div>
           <div class="table-wrapper orders-table-wrap">
             <table class="data-table">
               <thead><tr><th>Order</th><th>Customer</th><th>Store</th><th>Area</th><th>Hamper</th><th>Qty</th><th>Tipe</th><th>Tgl Kirim</th><th>Status</th><th>Aksi</th></tr></thead>
@@ -407,8 +407,9 @@
   </div>
 </div>
 
-<script src="config.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
+<script src="config.js?v=19"></script>
+<script src="app.js?v=19"></script>
 <script>if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 </body>
 </html>

@@ -532,14 +532,19 @@ function toggleSidebar() {
 }
 
 /* ============== CLOCK / GREETING ============== */
+var _clkKey = '';
 function tickClock() {
+  if (document.hidden) return;   // jangan kerja saat tab/PWA tidak terlihat
   var d = new Date();
   var p = function (x) { return ('0' + x).slice(-2); };
   var clock = $('bannerClock');
   if (clock) clock.textContent = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
   var h = d.getHours();
-  var g = (h >= 5 && h <= 10) ? 'Selamat pagi' : (h >= 11 && h <= 14) ? 'Selamat siang' : (h >= 15 && h <= 18) ? 'Selamat sore' : 'Selamat malam';
   var name = STATE.user ? (STATE.user.name || STATE.user.username) : '';
+  var key = h + '|' + d.getDate() + '|' + name;
+  if (key === _clkKey) return;   // sapaan/tanggal/ikon hanya diperbarui saat berubah
+  _clkKey = key;
+  var g = (h >= 5 && h <= 10) ? 'Selamat pagi' : (h >= 11 && h <= 14) ? 'Selamat siang' : (h >= 15 && h <= 18) ? 'Selamat sore' : 'Selamat malam';
   if ($('bannerGreeting')) $('bannerGreeting').textContent = g + (name ? ', ' + name : '');
   var day = h >= 6 && h < 18;
   var bi = $('bannerIcon');

@@ -1835,3 +1835,44 @@ body.dark .oc-title h4{color:#f1f8f4;}
   body.dark .bottom-nav .nav-item,body.dark .bottom-nav .bn-more{color:#bfe6d3 !important;}
   body.dark .bottom-nav .nav-item.active,body.dark .bottom-nav .bn-more.active,body.dark .bottom-nav .bn-more[aria-expanded="true"]{background:linear-gradient(135deg,#6ee7b7,#34d399) !important;color:#053b27 !important;box-shadow:0 6px 16px -6px rgba(52,211,153,.6) !important;}
 }
+/* ===== Riwayat status (timeline) di detail order ===== */
+.od-tl-head{margin:12px 0 8px;padding-top:10px;border-top:1px dashed #e3ece7;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+.od-tl{position:relative;display:flex;flex-direction:column;gap:12px;}
+.od-tl-empty{font-size:12.5px;color:var(--muted);padding:4px 0;}
+.od-tl-item{position:relative;display:flex;gap:12px;}
+.od-tl-item:not(:last-child)::before{content:"";position:absolute;left:13px;top:30px;bottom:-12px;width:2px;background:#e1ebe5;}
+.od-tl-dot{flex:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(135deg,#0e9f6e,#34d399);box-shadow:0 4px 10px -3px rgba(14,159,110,.5);}
+.od-tl-item.is-rev .od-tl-dot{background:linear-gradient(135deg,#f59e0b,#fbbf24);box-shadow:0 4px 10px -3px rgba(245,158,11,.5);}
+.od-tl-body{flex:1;min-width:0;background:#f7fbf9;border:1px solid var(--border);border-radius:12px;padding:9px 12px;}
+.od-tl-item.is-rev .od-tl-body{background:#fffaf0;border-color:#fde7b8;}
+.od-tl-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.od-tl-top b{font-size:13px;color:#0b1b14;}
+.od-tl-top small{font-size:11px;color:var(--muted);font-weight:600;}
+.od-tl-flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:7px 0 5px;}
+.od-tl-flow .badge{font-size:10.5px;padding:3px 9px;}
+.od-tl-arrow{color:var(--muted);font-weight:800;}
+.od-tl-by{font-size:12px;color:var(--muted);}
+.od-tl-by b{color:#0b1b14;}
+.od-tl-note{margin-top:6px;font-size:12.5px;color:#7a4a05;background:#fff3d6;border-radius:8px;padding:6px 9px;overflow-wrap:anywhere;}
+.od-tl-extra{margin-top:5px;font-size:11px;color:var(--muted);overflow-wrap:anywhere;}
+body.dark .od-tl-body{background:#12201a;border-color:#223a2f;}
+body.dark .od-tl-item.is-rev .od-tl-body{background:#241d0e;border-color:#4a3a14;}
+body.dark .od-tl-top b,body.dark .od-tl-by b{color:#e8f5ee;}
+body.dark .od-tl-note{background:#3a2d0c;color:#fcd68a;}
+body.dark .od-tl-head{border-top-color:#1f362b;}
+body.dark .od-tl-item:not(:last-child)::before{background:#223a2f;}
+
+/* ===== Pager ringkas: 1 baris, hemat ruang ===== */
+.pager2{flex-wrap:nowrap;margin-top:12px;padding:6px 8px;gap:8px;border-radius:12px;}
+.pager2-size{gap:6px;}
+.pager2-select{padding:5px 24px 5px 10px;border-radius:9px;font-size:12.5px;}
+.pager2-info{white-space:nowrap;font-size:12px;}
+.pager2-btn,.pager2-num{height:30px;min-width:30px;padding:0 8px;border-radius:9px;}
+@media (max-width:600px){
+  .pager2{flex-direction:row;align-items:center;justify-content:space-between;text-align:left;gap:6px;}
+  .pager2-size>span{display:none;}
+  .pager2-size,.pager2-nav{justify-content:flex-start;}
+  .pager2-nav{width:auto;justify-content:flex-end;gap:4px;}
+  .pager2-pages{gap:3px;}
+  .pager2-info{font-size:11.5px;}
+}

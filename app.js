@@ -268,14 +268,32 @@ function showToast(message, type) {
 }
 
 /* ---- modal ---- */
-function openModal(id) { $(id).classList.add('open'); document.body.classList.add('no-scroll'); }
+/* Kunci scroll halaman saat popup terbuka (aman untuk Android/iOS) */
+var _lockY = 0, _locked = false;
+function lockScroll_() {
+  if (_locked) return;
+  _lockY = window.pageYOffset || document.documentElement.scrollTop || 0;
+  document.body.style.top = (-_lockY) + 'px';
+  document.documentElement.classList.add('no-scroll');
+  document.body.classList.add('no-scroll');
+  _locked = true;
+}
+function unlockScroll_() {
+  if (!_locked) return;
+  document.body.classList.remove('no-scroll');
+  document.documentElement.classList.remove('no-scroll');
+  document.body.style.top = '';
+  window.scrollTo(0, _lockY);
+  _locked = false;
+}
+function openModal(id) { $(id).classList.add('open'); lockScroll_(); }
 function closeModal(id) {
   $(id).classList.remove('open');
-  if (!document.querySelector('.modal-overlay.open')) document.body.classList.remove('no-scroll');
+  if (!document.querySelector('.modal-overlay.open')) unlockScroll_();
 }
 function closeAllModals() {
   document.querySelectorAll('.modal-overlay.open').forEach(function (m) { m.classList.remove('open'); });
-  document.body.classList.remove('no-scroll');
+  unlockScroll_();
 }
 
 function openConfirm(title, message, confirmLabel, cb, icon) {
@@ -1251,7 +1269,7 @@ function renderOrderDetail(o) {
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
     $('markCompleteBtn').addEventListener('click', function () { askComplete(o); });
   } else {
-    var undoHtml = isAdmin() ? '<button class="btn btn-warn-outline" id="detailRevertBtn" style="margin-right:auto">' + ic('undo', 'sm') + ' Batalkan Status</button>' : '<span class="hint" style="margin-right:auto;align-self:center">Order sudah selesai diproses.</span>';
+    var undoHtml = isAdmin() ? '<button class="btn btn-warn-outline btn-revert" id="detailRevertBtn" style="margin-right:auto">' + ic('undo', 'sm') + '<span>Batalkan Status</span></button>' : '<span class="hint" style="margin-right:auto;align-self:center">Order sudah selesai diproses.</span>';
     f.innerHTML = undoHtml + '<button class="btn btn-secondary" data-close>Close</button>';
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
     if ($('detailRevertBtn')) $('detailRevertBtn').addEventListener('click', function () { askRevert(o); });

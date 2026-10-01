@@ -1739,3 +1739,29 @@ body.dark .btn-export{background:rgba(14,159,110,.14);border-color:#2a6a50;color
 #page-orders .table-head{flex-wrap:nowrap !important;}
 #page-orders .table-head .card-title{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 @media (max-width:420px){#page-orders .table-head .card-title{font-size:11px;letter-spacing:.04em;}.btn-export{padding:0 10px 0 8px;}}
+
+/* ===== v20: card order ringkas + bottom nav berwarna ===== */
+.oc-compact{padding:11px 12px !important;border-radius:16px !important;}
+.oc-compact .order-card-top{margin-bottom:6px !important;flex-wrap:nowrap !important;}
+.oc-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.oc-title h4{margin:0 !important;font-size:14.5px !important;font-weight:800;min-width:0;}
+.oc-actions{display:flex;gap:6px;flex-shrink:0;}
+.oc-actions .act-btn{width:30px;height:30px;min-height:30px;border-radius:9px;}
+.oc-actions .act-btn svg{width:15px;height:15px;}
+.oc-grid{display:grid;grid-template-columns:1fr 0.7fr 1.1fr;gap:6px 8px;padding-top:8px;border-top:1px dashed #dbe8e1;}
+.oc-cell{min-width:0;}
+.oc-cell.oc-wide{grid-column:1/-1;display:flex;align-items:baseline;gap:8px;}
+.oc-cell.oc-wide small{flex:0 0 46px;}
+.oc-cell small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:1px;}
+.oc-cell b{display:block;font-size:12.5px;font-weight:700;color:var(--text);overflow-wrap:anywhere;line-height:1.3;}
+body.dark .oc-grid{border-top-color:#223a2f;}
+body.dark .oc-cell b{color:#e8f3ed;}
+body.dark .oc-title h4{color:#f1f8f4;}
+
+@media (max-width:900px){
+  .bottom-nav{background:linear-gradient(135deg,#0b4a30,#0f6b46) !important;border:1px solid rgba(255,255,255,.12) !important;box-shadow:0 14px 30px rgba(3,40,28,.38) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  .bottom-nav .nav-item,.bottom-nav .bn-more,.bottom-nav .bn-logout{color:#b9dccb !important;}
+  .bottom-nav .nav-item.active,.bottom-nav .bn-more.active,.bottom-nav .bn-more[aria-expanded="true"]{background:#fff !important;color:#0a6b47 !important;box-shadow:0 6px 14px -6px rgba(0,0,0,.4) !important;}
+  body.dark .bottom-nav{background:linear-gradient(135deg,#0a1a13,#10261c) !important;border-color:#223a2f !important;}
+  body.dark .bottom-nav .nav-item.active,body.dark .bottom-nav .bn-more.active{background:rgba(52,211,153,.18) !important;color:#6ee7b7 !important;box-shadow:none !important;}
+}

@@ -1526,3 +1526,34 @@ html:has(#loginPage:not(.hidden)),body:has(#loginPage:not(.hidden)){overflow:hid
   .app-shell .kpi>.kpi-sub{font-size:10px !important;}
   .app-shell .kpi.kpi-wide>.kpi-value,.app-shell .kpi.kpi-span>.kpi-value{font-size:22px !important;}
 }
+
+/* =====================================================================
+   BATALKAN STATUS SELESAI (Admin)
+   ===================================================================== */
+.btn-warn{background:linear-gradient(135deg,#ea8a0c,#f7b84a);color:#fff;box-shadow:0 8px 18px rgba(234,138,12,.3);}
+.btn-warn:hover{filter:brightness(1.07);transform:translateY(-1px);}
+.btn-warn-outline{background:#fff;color:#b45309;border:1.5px solid #f2b24a;}
+.btn-warn-outline:hover{background:#fff7e6;border-color:#ea8a0c;}
+body.dark .app-shell .btn-warn-outline,body.dark #modalOrderDetail .btn-warn-outline{background:rgba(245,158,11,.10);color:#fbbf6a;border-color:#a8680f;}
+body.dark .app-shell .btn-warn-outline:hover,body.dark #modalOrderDetail .btn-warn-outline:hover{background:rgba(245,158,11,.2);}
+#modalRevert{z-index:125;}
+#modalRevert .confirm-body{padding:26px 24px 6px;}
+#modalRevert .confirm-body p{line-height:1.6;}
+#modalRevert .modal-footer{justify-content:center;background:transparent;border-top:0;padding:10px 22px 22px;}
+#modalRevert .modal-footer .btn{flex:1;min-height:46px;}
+.rv-field{text-align:left;margin-top:16px;}
+.rv-field label{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:8px;color:var(--text);}
+.rv-req{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b45309;background:#fff1d6;padding:2px 8px;border-radius:99px;}
+.rv-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.rv-chip{border:1px solid var(--border);background:#f6faf8;color:#2a4538;font:600 11.5px/1 inherit;font-family:inherit;padding:7px 11px;border-radius:99px;cursor:pointer;transition:.15s;}
+.rv-chip:hover{border-color:#f2b24a;background:#fff7e6;color:#b45309;}
+.rv-field textarea{width:100%;box-sizing:border-box;resize:none;padding:11px 13px;border:1.5px solid #e0e9e4;border-radius:12px;background:#f7faf8;font:inherit;font-size:14px;color:var(--text);transition:.15s;}
+.rv-field textarea:focus{outline:none;background:#fff;border-color:#ea8a0c;box-shadow:0 0 0 4px rgba(234,138,12,.14);}
+.rv-err{margin-top:6px;font-size:12px;font-weight:600;color:var(--danger);}
+@media (max-width:900px){.rv-field textarea{font-size:16px;}}
+body.dark #modalRevert .rv-field label{color:#e8f3ed;}
+body.dark #modalRevert .rv-req{background:rgba(245,158,11,.18);color:#fbbf6a;}
+body.dark #modalRevert .rv-chip{background:#162a21;border-color:#2a4337;color:#cfe6da;}
+body.dark #modalRevert .rv-chip:hover{background:rgba(245,158,11,.14);color:#fbbf6a;border-color:#a8680f;}
+body.dark #modalRevert .rv-field textarea{background:#0e1914;border-color:#2a4337;color:#e8f3ed;}
+body.dark #modalRevert .rv-field textarea:focus{background:#0b1511;border-color:#f59e0b;}

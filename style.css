@@ -1459,3 +1459,23 @@ body.dark .app-shell .kpi,body.dark .app-shell .kpi:hover{box-shadow:none !impor
 
 /* 7) Scroll lebih halus pada area yang bisa di-scroll sendiri */
 .nf-body,.notif-body,.modal-body,.table-wrapper,.sidebar-nav{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+
+/* =====================================================================
+   LOGIN FIX — tidak bisa di-scroll, selalu di tengah, 1 baris rapi
+   ===================================================================== */
+/* kunci scroll halaman selama login tampil */
+html:has(#loginPage:not(.hidden)),body:has(#loginPage:not(.hidden)){overflow:hidden !important;overscroll-behavior:none;height:100%;}
+.login-page{position:fixed !important;inset:0;min-height:0 !important;height:100%;display:flex;align-items:center;justify-content:center;
+  padding:16px !important;overflow-x:hidden;overflow-y:auto;overscroll-behavior:none;}
+/* margin:auto = tetap di tengah; baru bisa digeser hanya jika layar sangat pendek (mis. keyboard muncul) */
+.login-page .lg-wrap{margin:auto !important;padding-top:44px;}
+.login-page::-webkit-scrollbar{display:none;}
+.login-page{scrollbar-width:none;}
+
+/* subtitle 1 baris */
+.lg-sub{white-space:nowrap;font-size:clamp(11px,3.5vw,13px);margin-left:-8px;margin-right:-8px;}
+
+/* "Ingat saya" kiri, "Lupa password?" kanan, 1 baris (override versi mobile kolom) */
+.lg-row{display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;align-items:center !important;justify-content:space-between !important;gap:8px !important;}
+.lg-row .lg-check{white-space:nowrap;flex-shrink:0;}
+.lg-row .lg-help{white-space:nowrap;text-align:right;font-size:clamp(10.5px,3vw,12px);}

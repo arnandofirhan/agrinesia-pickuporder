@@ -2548,3 +2548,6 @@ body.dark .gl-card .gc-ref small,body.dark .gl-card .gc-st,body.dark .gl-card .g
 body.dark .gl-head{color:#8aa396;}
 @media (min-width:769px){body.dark .gl-card .gc-st,body.dark .gl-card .gc-dt{color:#e8f3ed;}}
 body.dark .gl-card:hover,body.dark .gl-card:focus-visible{border-color:#2f6b52;}
+/* Bukti foto: di tengah & proporsional */
+.pf-thumb{margin:0 auto;max-width:420px;}
+.od-box .pf-thumb{box-shadow:0 4px 14px rgba(0,0,0,.18);}

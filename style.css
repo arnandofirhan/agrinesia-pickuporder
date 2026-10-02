@@ -2032,15 +2032,10 @@ body.dark .notif-popover .nf-body::-webkit-scrollbar-thumb{background:#2a4638;}
 }
 @media (prefers-reduced-motion:reduce){.kr-prog{animation:none;}}
 
-/* Angka tidak boleh terpotong: tile Rata-rata lebih lebar, Area Aktif ringkas */
+/* Angka tidak boleh terpotong: tile setengah-setengah, angka di baris sendiri */
 @media (max-width:820px){
   .app-shell .kpi-grid .kpi>.kpi-value{overflow:visible !important;text-overflow:clip !important;white-space:nowrap !important;}
-  .app-shell .kpi-grid .kpi:nth-child(8){grid-column:span 4 !important;}
-  .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-label{white-space:normal !important;}
-  .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-value{font-size:clamp(15px,5vw,20px) !important;}
-  .app-shell .kpi-grid .kpi:nth-child(9){grid-column:span 2 !important;grid-template-columns:auto minmax(0,1fr) !important;grid-template-areas:"icon value" "label label" !important;row-gap:6px !important;column-gap:8px !important;padding:10px !important;}
-  .app-shell .kpi-grid .kpi:nth-child(9)>.kpi-icon{width:30px !important;height:30px !important;border-radius:10px !important;}
-  .app-shell .kpi-grid .kpi:nth-child(9)>.kpi-icon svg{width:15px !important;height:15px !important;}
-  .app-shell .kpi-grid .kpi:nth-child(9)>.kpi-value{font-size:21px !important;margin:0 !important;text-align:right;}
-  .app-shell .kpi-grid .kpi:nth-child(9)>.kpi-label{white-space:nowrap !important;font-size:9.5px !important;}
+  .app-shell .kpi-grid .kpi:nth-child(8),.app-shell .kpi-grid .kpi:nth-child(9){grid-column:span 3 !important;grid-template-columns:auto minmax(0,1fr) !important;grid-template-areas:"icon label" "value value" !important;row-gap:6px !important;column-gap:9px !important;}
+  .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-icon,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-icon{width:32px !important;height:32px !important;}
+  .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-value,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-value{font-size:clamp(18px,5.4vw,22px) !important;margin:0 !important;}
 }

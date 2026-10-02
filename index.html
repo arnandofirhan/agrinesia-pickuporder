@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css?v=28">
+  <link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 
@@ -195,7 +195,7 @@
             </table>
           </div>
           <div id="ordersCardList" class="mobile-card-list"></div>
-          <div id="ordersEmptyState" class="empty-state hidden"><i data-ic="package"></i><p>Tidak ada order ditemukan.</p></div>
+          <div id="ordersEmptyState" class="hidden"></div>
           <div class="pager2 hidden" id="ordersPager">
             <div class="pager2-size"><span>Tampilkan</span>
               <select id="orderPageSize" class="pager2-select"><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="200">200</option></select>
@@ -503,7 +503,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
 <script src="config.js?v=26"></script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
 <script>if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 <div class="cam-ov hidden" id="camOv">
   <video id="camVideo" playsinline autoplay muted></video>

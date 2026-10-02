@@ -1669,7 +1669,6 @@ function bindProofRecap_() {
   $('camUse').addEventListener('click', camUse_);
   $('camRetake').addEventListener('click', camRetake_);
   $('camTorch').addEventListener('click', camTorch_);
-  $('camGridBtn').addEventListener('click', function () { var on = $('camFrame').classList.toggle('grid-on'); this.setAttribute('aria-pressed', on ? 'true' : 'false'); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('camOv').classList.contains('hidden')) closeCamera_(); });
 }
 function recapCompute_() {

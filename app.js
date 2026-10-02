@@ -1010,7 +1010,7 @@ function renderDashboard() {
     { l: 'Completed Delivery', v: s.completedDelivery, c: 'kpi-teal', i: 'truck', sub: 'Sudah dikirim', st: 'COMPLETED_DELIVERY', dt: '' },
     { l: 'Total Quantity', v: s.totalQty, c: 'kpi-slate', i: 'layers', sub: 'Total item order', st: '', dt: '' },
     { l: 'Total Revenue', v: s.totalRevenue || 0, c: 'kpi-gold kpi-wide', i: 'wallet', sub: 'Total pendapatan pre-order', st: '', dt: '', money: true },
-    { l: 'Rata-rata Nilai Order', v: avgOrder, c: 'kpi-orange', i: 'wallet', sub: 'Revenue per order', st: '', dt: '', money: true },
+    { l: 'Rata-rata Order', v: avgOrder, c: 'kpi-orange', i: 'wallet', sub: 'Revenue per order', st: '', dt: '', money: true },
     { l: 'Area Aktif', v: activeAreas, c: 'kpi-teal', i: 'map', sub: 'Area yang punya order', st: '', dt: '', act: 'area-active' },
     { l: 'Completion Rate', v: completionRate, c: 'kpi-green kpi-span', i: 'check', sub: doneOrders.toLocaleString('id-ID') + ' dari ' + Number(s.totalOrder || 0).toLocaleString('id-ID') + ' order selesai (pickup + delivery)', st: '', dt: '', pct: true }
   ];

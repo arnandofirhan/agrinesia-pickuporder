@@ -2045,3 +2045,11 @@ body.dark .notif-popover .nf-body::-webkit-scrollbar-thumb{background:#2a4638;}
   .app-shell .kpi-grid .kpi:nth-child(8),.app-shell .kpi-grid .kpi:nth-child(9){order:4;}
   .app-shell .kpi-grid .kpi:nth-child(7){order:5;}
 }
+
+/* Ikon & jarak tile Rata-rata / Area Aktif disamakan dengan tile lain */
+@media (max-width:820px){
+  .app-shell .kpi-grid .kpi:nth-child(8),.app-shell .kpi-grid .kpi:nth-child(9){padding:11px 12px !important;column-gap:10px !important;}
+  .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-icon,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-icon{width:36px !important;height:36px !important;border-radius:12px !important;margin:0 !important;justify-self:start;align-self:center;}
+  .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-icon svg,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-icon svg{width:17px !important;height:17px !important;}
+  .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-label,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-label{font-size:10px !important;letter-spacing:.03em !important;}
+}

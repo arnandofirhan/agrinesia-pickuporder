@@ -770,8 +770,9 @@ function restoreSessionUI(data) {
   tickClock();
 
   // Buka halaman terakhir (mis. tetap di Orders saat refresh); hanya data halaman itu yang dimuat
-  var startPage = store('pom_page');
+  var startPage = pageFromPath_() || store('pom_page');
   if (!startPage || !TITLES[startPage]) startPage = 'dashboard';
+  STATE.urlReady = false;
   hydrateCache_();      // tampil instan dari data terakhir, lalu disegarkan di bawah
   loadNotifRead_();
   navigateTo(startPage); // data halaman aktif diminta lebih dulu
@@ -830,9 +831,29 @@ function toggleMoreSheet_(force) {
   $('moreSheet').classList.toggle('open', open); $('moreSheetBackdrop').classList.toggle('open', open);
   $('bnMoreBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
 }
-function navigateTo(page) {
+/* ---- URL per halaman: /dashboard, /orders, /rekap, /galeri, /users, /stores, /area ---- */
+var PAGE_PATH = { dashboard: 'dashboard', orders: 'orders', recap: 'rekap', gallery: 'galeri', users: 'users', stores: 'stores', areas: 'area' };
+function pageFromPath_() {
+  var seg = (location.pathname || '/').replace(/^\/+|\/+$/g, '').split('/')[0].toLowerCase();
+  for (var k in PAGE_PATH) if (PAGE_PATH[k] === seg) return k;
+  return null;
+}
+function syncUrl_(page, replace) {
+  try {
+    var want = '/' + PAGE_PATH[page];
+    if (location.pathname === want) return;
+    history[replace ? 'replaceState' : 'pushState']({ page: page }, '', want + location.search);
+  } catch (e) {}
+}
+window.addEventListener('popstate', function () {
+  if (!STATE.user) return;
+  var p = pageFromPath_();
+  if (p && p !== STATE.page) navigateTo(p, true);
+});
+function navigateTo(page, fromPop) {
   if (ADMIN_PAGES.indexOf(page) !== -1 && !isAdmin()) page = 'dashboard';
   STATE.page = page; store('pom_page', page);
+  if (!fromPop) syncUrl_(page, !STATE.urlReady); STATE.urlReady = true;
   document.querySelectorAll('.page').forEach(function (p) { p.classList.add('hidden'); });
   $('page-' + page).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.toggle('active', n.getAttribute('data-page') === page); });

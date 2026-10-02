@@ -2346,6 +2346,12 @@ function bindGallery_() {
     var c = e.target.closest('[data-gi]'); if (c) { e.preventDefault(); glOpen_(+c.getAttribute('data-gi')); }
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-glclose]'), function (b) { b.addEventListener('click', glClose_); });
+  $('glLbFail').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-glcopy]'); if (!b) return;
+    copyText_(b.getAttribute('data-glcopy'), 'Nomor resi disalin');
+    b.classList.add('done'); b.innerHTML = ic('check', 'sm') + ' Tersalin';
+    setTimeout(function () { b.classList.remove('done'); b.innerHTML = ic('copy', 'sm') + ' Salin Resi'; }, 1600);
+  });
   $('glPrev').addEventListener('click', function () { glStep_(-1); });
   $('glNext').addEventListener('click', function () { glStep_(1); });
   $('glLbOrder').addEventListener('click', function () {
@@ -2409,7 +2415,7 @@ function glOpen_(i) {
   var img = $('glLbImg'), fail = $('glLbFail');
   fail.classList.add('hidden');
   if (it.fid) { img.classList.remove('hidden'); img.src = glThumb_(it, 1600); $('glLbDrive').classList.remove('hidden'); $('glLbDrive').href = o.proofValue; }
-  else { img.classList.add('hidden'); img.removeAttribute('src'); fail.innerHTML = ic('truck') + '<small>No. Resi</small><b>' + esc(o.proofValue) + '</b>'; fail.classList.remove('hidden'); $('glLbDrive').classList.add('hidden'); }
+  else { img.classList.add('hidden'); img.removeAttribute('src'); fail.innerHTML = ic('truck') + '<small>No. Resi</small><b>' + esc(o.proofValue) + '</b><button type="button" class="gl-copy" data-glcopy="' + esc(o.proofValue) + '">' + ic('copy', 'sm') + ' Salin Resi</button>'; fail.classList.remove('hidden'); $('glLbDrive').classList.add('hidden'); }
   $('glLbType').textContent = del ? 'Delivery' : 'Pickup';
   $('glLbType').className = 'gl-lb-pill ' + (del ? 'del' : 'pick');
   var total = Math.min(GL.list.length, GL.shown);

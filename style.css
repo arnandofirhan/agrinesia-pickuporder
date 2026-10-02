@@ -2053,3 +2053,15 @@ body.dark .notif-popover .nf-body::-webkit-scrollbar-thumb{background:#2a4638;}
   .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-icon svg,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-icon svg{width:17px !important;height:17px !important;}
   .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-label,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-label{font-size:10px !important;letter-spacing:.03em !important;}
 }
+
+/* ===== Skeleton dashboard = bentuk kartu asli ===== */
+.skl{display:block;border-radius:6px;}
+.app-shell .kpi-grid .kpi.is-sk.is-sk{background:#fff !important;border:1px solid var(--border) !important;box-shadow:var(--shadow) !important;pointer-events:none;}
+.app-shell .kpi-grid .kpi.is-sk.is-sk::before,.app-shell .kpi-grid .kpi.is-sk.is-sk::after{display:none !important;}
+.app-shell .kpi.is-sk.is-sk>.kpi-icon,.app-shell .kpi.is-sk.is-sk .skl{background:linear-gradient(90deg,#edf1ef 25%,#f8faf9 37%,#edf1ef 63%) !important;background-size:400% 100% !important;animation:sh 1.3s ease infinite;box-shadow:none !important;}
+body.dark .app-shell .kpi-grid .kpi.is-sk.is-sk{background:#12201a !important;border-color:#223a2f !important;}
+body.dark .app-shell .kpi.is-sk.is-sk>.kpi-icon,body.dark .app-shell .kpi.is-sk.is-sk .skl{background:linear-gradient(90deg,#16271f 25%,#1d3329 37%,#16271f 63%) !important;background-size:400% 100% !important;}
+.skl-ring{width:92px;height:92px;border-radius:50% !important;-webkit-mask:radial-gradient(circle,transparent 31px,#000 32px);mask:radial-gradient(circle,transparent 31px,#000 32px);}
+.skl-chip{width:58px;height:18px;border-radius:999px !important;}
+.kpi-chips .skl{display:inline-block;}
+@media (max-width:820px){.app-shell .kpi-grid .kpi.is-sk .kpi-ring{width:92px;height:92px;}}

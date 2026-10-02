@@ -2323,6 +2323,7 @@ function exportOrdersExcel() {
 var GL = { list: [], shown: 24, idx: -1, built: false };
 function glId_(u) { var m = String(u || '').match(/\/d\/([\w-]+)/) || String(u || '').match(/[?&]id=([\w-]+)/); return m ? m[1] : ''; }
 function glThumb_(it, w) { return 'https://drive.google.com/thumbnail?id=' + it.fid + '&sz=w' + w; }
+function glRef_(o) { return '#' + String(o.orderReference || '').replace(/^#+/, ''); }
 function glDateKey_(o) { return String(o.deliveryDate || '').replace(/\//g, '-'); }
 function bindGallery_() {
   if (!$('glSearch')) return;
@@ -2393,7 +2394,7 @@ function renderGallery() {
       ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + glThumb_(it, 480) + '" alt="Bukti ' + esc(o.orderReference) + '" onerror="this.parentNode.classList.add(\'fail\');this.remove()">'
       : '<div class="gl-resi">' + ic('truck') + '<small>No. Resi</small><b>' + esc(o.proofValue) + '</b></div>';
     return '<div class="gl-card" data-gi="' + i + '" tabindex="0" role="button" title="Lihat bukti ' + esc(o.orderReference) + '"><div class="gl-media">' + media + '<div class="gl-fb">' + ic('image') + '<small>Pratinjau tidak tersedia</small></div>' + badge + '</div>' +
-      '<div class="gl-meta"><b>#' + esc(o.orderReference) + '</b><span class="gl-h">' + esc(o.hamperName || '-') + '</span><span class="gl-s">' + esc(o.outletName || '-') + ' &middot; ' + esc(glDateKey_(o) || '-') + '</span></div></div>';
+      '<div class="gl-meta"><b>' + esc(glRef_(o)) + '</b><span class="gl-h">' + esc(o.hamperName || '-') + '</span><span class="gl-s">' + esc(o.outletName || '-') + ' &middot; ' + esc(glDateKey_(o) || '-') + '</span></div></div>';
   }).join('');
   $('glMoreBox').classList.toggle('hidden', list.length <= GL.shown);
   if (list.length > GL.shown) $('glMoreBtn').textContent = 'Muat lebih banyak (' + (list.length - GL.shown) + ' lagi)';
@@ -2405,7 +2406,7 @@ function glOpen_(i) {
   fail.classList.add('hidden');
   if (it.fid) { img.classList.remove('hidden'); img.src = glThumb_(it, 1600); $('glLbDrive').classList.remove('hidden'); $('glLbDrive').href = o.proofValue; }
   else { img.classList.add('hidden'); img.removeAttribute('src'); fail.textContent = 'Resi: ' + o.proofValue; fail.classList.remove('hidden'); $('glLbDrive').classList.add('hidden'); }
-  $('glLbInfo').innerHTML = row('Order', '#' + o.orderReference) + row('Customer', o.customer) + row('Hamper', o.hamperName + (o.qty ? ' (' + o.qty + ' pcs)' : '')) + row('Store', o.outletName) + row('Tanggal', glDateKey_(o)) + row('Diselesaikan oleh', o.updatedBy);
+  $('glLbInfo').innerHTML = row('Order', glRef_(o)) + row('Customer', o.customer) + row('Hamper', o.hamperName + (o.qty ? ' (' + o.qty + ' pcs)' : '')) + row('Store', o.outletName) + row('Tanggal', glDateKey_(o)) + row('Diselesaikan oleh', o.updatedBy);
   $('glPrev').classList.toggle('hidden', i <= 0);
   $('glNext').classList.toggle('hidden', i >= Math.min(GL.list.length, GL.shown) - 1);
   $('glLb').classList.remove('hidden'); document.body.classList.add('gl-lock');

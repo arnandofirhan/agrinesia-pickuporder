@@ -1883,3 +1883,46 @@ body.dark .od-tl-item:not(:last-child)::before{background:#223a2f;}
 .od-tl-flow .badge::before{width:5px;height:5px;}
 .od-tl-arrow{flex:none;font-size:12px;}
 @media (max-width:380px){.od-tl-flow .badge{font-size:9.5px;padding:3px 6px;}.od-tl-flow .badge::before{display:none;}}
+
+/* ===== Notifikasi: scroll di HP, lebih ringkas, lonceng modern ===== */
+.notif-popover{display:flex;flex-direction:column;overflow:hidden !important;max-height:min(70vh,calc(100dvh - 150px));}
+.notif-popover .nf-head,.notif-popover .nf-foot{flex:none;}
+.notif-popover .nf-body{flex:1 1 auto;min-height:0;max-height:none !important;overflow-y:auto !important;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#cfdad4 transparent;}
+.notif-popover .nf-body::-webkit-scrollbar{display:block !important;width:4px !important;}
+.notif-popover .nf-body::-webkit-scrollbar-thumb{background:#cfdad4;border-radius:4px;}
+body.dark .notif-popover .nf-body::-webkit-scrollbar-thumb{background:#2a4638;}
+/* ukuran lebih kecil (desain tetap) */
+.notif-popover{width:352px;border-radius:20px !important;}
+.nf-head{padding:12px 12px 9px;}
+.nf-head-ic{width:32px;height:32px;border-radius:10px;}
+.nf-head-ic svg{width:17px;height:17px;}
+.nf-head-title{gap:9px;}
+.nf-head-title b{font-size:14px;}
+.nf-head-title small{font-size:11px;}
+.nf-readall{font-size:11px;padding:6px 10px;}
+.nf-tabs{margin-top:9px;padding:3px;gap:4px;border-radius:11px;}
+.nf-tab{font-size:11px;padding:5px 4px;}
+.nf-tab i{font-size:10px;min-width:16px;padding:0 4px;}
+.nf-body{padding:6px;}
+.nf-item{gap:10px;padding:8px 10px;border-radius:14px;}
+.nf-item+.nf-item{margin-top:3px;}
+.nf-ico{width:34px;height:34px;border-radius:11px;}
+.nf-ico svg{width:17px;height:17px;}
+.nf-title{font-size:13px !important;}
+.nf-sub{font-size:11.5px;margin-top:1px;}
+.nf-meta{margin-top:5px;gap:5px;}
+.nf-chip{font-size:10.5px;padding:2px 7px;}
+.nf-foot{padding:7px 10px 9px;}
+.nf-foot a{padding:8px;font-size:12px;border-radius:11px;}
+@media (max-width:820px){.notif-popover{left:10px !important;right:10px !important;width:auto !important;}}
+
+/* lonceng header: gradien modern senada ikon di popup */
+.icon-btn.bell,body.dark .app-shell .icon-btn.bell{background:linear-gradient(135deg,#ef4444,#f97316);border:0;color:#fff;box-shadow:0 6px 14px rgba(239,68,68,.35),inset 0 1px 0 rgba(255,255,255,.3);}
+.icon-btn.bell:hover{filter:brightness(1.06);transform:translateY(-1px);}
+.icon-btn.bell:active{transform:scale(.95);}
+.icon-btn.bell svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.18));}
+.bell-badge,body.dark .app-shell .bell-badge{background:#fff;color:#dc2626;border:2px solid #ef4444;box-shadow:0 2px 6px rgba(220,38,38,.35);top:-6px;right:-6px;}
+.bell-badge.dot{background:#fff;}
+.icon-btn.bell:not(:has(.bell-badge.hidden)) svg{animation:bellRing 3.5s ease-in-out infinite;transform-origin:50% 12%;}
+@keyframes bellRing{0%,86%,100%{transform:rotate(0)}89%{transform:rotate(14deg)}92%{transform:rotate(-12deg)}95%{transform:rotate(7deg)}98%{transform:rotate(-4deg)}}
+@media (prefers-reduced-motion:reduce){.icon-btn.bell svg{animation:none !important;}}

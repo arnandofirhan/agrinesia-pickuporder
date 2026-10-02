@@ -323,10 +323,23 @@ function openConfirm(title, message, confirmLabel, cb, icon) {
 }
 
 function stateBlock(msg, retry, extra) {
-  return '<div class="state-box' + (retry ? ' err' : '') + (extra ? ' ' + extra : '') + '">' + ic(retry ? 'xcircle' : 'info') + '<span>' + esc(msg) + '</span>' +
-    (retry ? '<button class="btn btn-sm btn-outline" data-act="retry" data-v="' + retry + '">' + ic('refresh', 'sm') + ' Coba Lagi</button>' : '') + '</div>';
+  if (retry) {
+    return '<div class="es err' + (extra ? ' ' + extra : '') + '"><div class="es-ic">' + ic('xcircle', 'lg') + '</div><b>Gagal memuat data</b><p>' + esc(msg) + '</p>' +
+      '<button class="btn btn-sm btn-outline" data-act="retry" data-v="' + retry + '">' + ic('refresh', 'sm') + ' Coba Lagi</button></div>';
+  }
+  return emptyBlock('info', msg, '', extra);
 }
+function emptyBlock(icon, title, desc, extra) {
+  return '<div class="es' + (extra ? ' ' + extra : '') + '"><div class="es-ic">' + ic(icon || 'info', 'lg') + '</div><b>' + esc(title) + '</b>' + (desc ? '<p>' + esc(desc) + '</p>' : '') + '</div>';
+}
+function emptyRow(cols, icon, title, desc) { return '<tr class="state-row"><td colspan="' + cols + '">' + emptyBlock(icon, title, desc) + '</td></tr>'; }
 function stateRow(cols, msg, retry) { return '<tr class="state-row"><td colspan="' + cols + '">' + stateBlock(msg, retry) + '</td></tr>'; }
+// Deskripsi hasil kosong: sebut kata kunci bila ada, atau arahkan ubah filter
+function noResultDesc_(q, hasFilter) {
+  if (q) return 'Tidak ada hasil untuk \u201c' + q + '\u201d. Periksa ejaan, coba kata kunci lain' + (hasFilter ? ', atau ubah filter.' : '.');
+  if (hasFilter) return 'Tidak ada data yang cocok dengan filter yang dipilih. Coba ubah atau kosongkan filter.';
+  return 'Belum ada data untuk ditampilkan.';
+}
 var SKEL_ROWS = function (n) { var s = ''; for (var i = 0; i < n; i++) s += '<tr><td colspan="10"><span class="sk" style="height:16px"></span></td></tr>'; return s; };
 
 // Tombol aksi icon-only seragam untuk semua tabel (view/edit/complete/delete/toggle)
@@ -971,7 +984,7 @@ function openActiveAreas_() {
     '<div class="aa-summary"><div><b>' + names.length + '</b><span>Area aktif</span></div>' +
     '<div><b>' + (lk.stores.length ? totalStoreActive : '-') + '</b><span>Store punya order</span></div>' +
     '<div><b>' + totalOrd.toLocaleString('id-ID') + '</b><span>Total order</span></div></div>' + cards
-    : '<div class="no-data">Belum ada area yang memiliki order.</div>';
+    : emptyBlock('map', 'Belum ada area aktif', 'Area akan muncul di sini setelah ada order masuk.', 'sm');
   openModal('modalActiveAreas');
 }
 
@@ -999,7 +1012,7 @@ function renderDashboardSkeleton() {
 
 function rankList(obj, kind) {
   var keys = Object.keys(obj).sort(function (a, b) { return obj[b] - obj[a]; });
-  if (!keys.length) return '<div class="no-data">Tidak ada data.</div>';
+  if (!keys.length) return emptyBlock('info', 'Belum ada data', '', 'sm');
   var max = obj[keys[0]] || 1;
   var html = '<div class="rank-wrap"><div class="rank-list' + (kind === 'area' ? ' single' : '') + '">' + keys.map(function (k, i) {
     var v = k === 'Unknown' ? '__NONE__' : k;
@@ -1270,6 +1283,9 @@ function renderOrders(keepScroll) {
 
   if (!all.length) {
     tbody.innerHTML = ''; list.innerHTML = '';
+    var oq = ($('searchInput') ? $('searchInput').value.trim() : '');
+    var ofl = Array.prototype.some.call(document.querySelectorAll('#ordersFilterCard select, #ordersFilterCard input[type=date]'), function (e) { return !!e.value; });
+    empty.innerHTML = STATE.orders.length ? emptyBlock('search', 'Order tidak ditemukan', noResultDesc_(oq, ofl)) : emptyBlock('orders', 'Belum ada order', 'Order yang masuk akan tampil di sini.');
     empty.classList.remove('hidden'); pager.classList.add('hidden');
     return;
   }
@@ -1709,7 +1725,7 @@ function renderRecap() {
   $('recapCopyBtn').disabled = !d.orders;
   if (!d.orders) {
     $('recapSummary').innerHTML = '';
-    box.innerHTML = '<div class="card"><div class="empty-state">' + ic('package') + '<p>' + (d.ready ? 'Tidak ada order yang perlu disiapkan.' : 'Tidak ada order ditemukan.') + '</p></div></div>';
+    box.innerHTML = '<div class="card">' + (d.ready ? emptyBlock('check', 'Tidak ada order yang perlu disiapkan', 'Semua order pada tanggal ini sudah siap atau belum ada yang masuk.') : emptyBlock('search', 'Order tidak ditemukan', 'Coba ubah tanggal atau filter store / area.')) + '</div>';
     return;
   }
   var tile = function (v, l) { return '<div class="rc-tile"><b>' + Number(v).toLocaleString('id-ID') + '</b><span>' + l + '</span></div>'; };
@@ -1962,7 +1978,7 @@ function renderUsersPager_(total, start, shown, pages) {
 
 function renderUsers() {
   if (!STATE.users) return;
-  if (!STATE.users.length) { $('usersTableBody').innerHTML = stateRow(7, 'Belum ada user. Klik "Tambah User" untuk membuat akun.'); if ($('usersCount')) $('usersCount').textContent = '0 user'; return; }
+  if (!STATE.users.length) { $('usersTableBody').innerHTML = emptyRow(7, 'users', 'Belum ada user', 'Klik "Tambah User" untuk membuat akun admin atau store user pertama.'); if ($('usersCount')) $('usersCount').textContent = '0 user'; return; }
   var uq = $('userSearchInput').value.trim().toLowerCase(), ur = $('userFilterRole').value, us = $('userFilterStatus').value;
   var list = STATE.users.map(function (u, i) { u.__idx = i; return u; }).filter(function (u) {
     var role = u.role === 'STORE_USER' ? 'STORE' : u.role;
@@ -1972,7 +1988,7 @@ function renderUsers() {
     return true;
   });
   if ($('usersCount')) $('usersCount').textContent = list.length + ' user';
-  if (!list.length) { $('usersTableBody').innerHTML = stateRow(7, 'Tidak ada user ditemukan.'); $('usersPager').classList.add('hidden'); return; }
+  if (!list.length) { $('usersTableBody').innerHTML = emptyRow(7, 'search', 'User tidak ditemukan', noResultDesc_($('userSearchInput').value.trim(), !!(ur || us))); $('usersPager').classList.add('hidden'); return; }
   var total = list.length, pages = Math.max(1, Math.ceil(total / USER_PAGE.size));
   if (USER_PAGE.no > pages) USER_PAGE.no = pages;
   if (USER_PAGE.no < 1) USER_PAGE.no = 1;
@@ -2187,7 +2203,7 @@ function renderAdminLists() {
   populateStoreFilterArea();
   var st = filteredStores(), ar = STATE.lookup.areas;
   if ($('storesCount')) $('storesCount').textContent = st.length + ' store';
-  $('storesTableBody').innerHTML = !st.length ? stateRow(5, 'Tidak ada store ditemukan.') : st.map(function (s) {
+  $('storesTableBody').innerHTML = !st.length ? (STATE.lookup.stores.length ? emptyRow(5, 'search', 'Store tidak ditemukan', noResultDesc_($('storeSearchInput') ? $('storeSearchInput').value.trim() : '', !!(($('storeFilterArea') && $('storeFilterArea').value) || ($('storeFilterStatus') && $('storeFilterStatus').value)))) : emptyRow(5, 'store', 'Belum ada store', 'Klik "Tambah Store" untuk menambahkan store pertama.')) : st.map(function (s) {
     var i = s.__idx;
     return '<tr><td data-label="Store ID"><span class="mono">' + esc(s.storeId) + '</span></td>' +
       '<td data-label="Nama Store"><span class="cell-main">' + esc(s.storeName) + '</span></td>' +
@@ -2198,7 +2214,7 @@ function renderAdminLists() {
       iconActionBtn({ kind: 'danger', act: 'delete-store', v: i, icon: 'trash', title: 'Delete' }) +
       '</div></td></tr>';
   }).join('');
-  $('areasTableBody').innerHTML = !ar.length ? stateRow(4, 'Belum ada area.') : ar.map(function (a, i) {
+  $('areasTableBody').innerHTML = !ar.length ? emptyRow(4, 'map', 'Belum ada area', 'Klik "Tambah Area" untuk membuat area pengiriman pertama.') : ar.map(function (a, i) {
     return '<tr><td data-label="Area ID"><span class="mono">' + esc(a.areaId) + '</span></td>' +
       '<td data-label="Nama Area"><span class="cell-main">' + esc(a.areaName) + '</span></td>' +
       '<td data-label="Status">' + activeBadge(a.status) + '</td>' +
@@ -2476,7 +2492,7 @@ function renderGallery() {
   list.sort(function (a, b) { return String(b.o.updatedAt || b.o.deliveryDate).localeCompare(String(a.o.updatedAt || a.o.deliveryDate)); });
   GL.list = list;
   $('glCount').textContent = list.length.toLocaleString('id-ID') + ' bukti';
-  if (!list.length) { box.innerHTML = '<div class="card gl-empty"><div class="empty-state">' + ic('image') + '<p>' + (n ? 'Tidak ada bukti yang cocok dengan filter.' : 'Belum ada bukti serah terima.') + '</p></div></div>'; $('glMoreBox').classList.add('hidden'); return; }
+  if (!list.length) { box.innerHTML = '<div class="card gl-empty">' + (n ? emptyBlock('search', 'Bukti tidak ditemukan', 'Tidak ada bukti yang cocok. Coba ubah kata kunci, tanggal, atau filter store / area.') : emptyBlock('file', 'Belum ada bukti serah terima', 'Foto atau resi akan muncul di sini setelah order diselesaikan.')) + '</div>'; $('glMoreBox').classList.add('hidden'); return; }
   box.innerHTML = list.slice(0, GL.shown).map(function (it, i) {
     var o = it.o, del = isDeliveryOrder(o), badge = '<span class="gl-badge ' + (del ? 'del' : 'pick') + '">' + (del ? 'Delivery' : 'Pickup') + '</span>';
     var media = it.fid

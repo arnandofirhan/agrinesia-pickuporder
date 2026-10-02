@@ -13,13 +13,44 @@
   // Fungsi tulis (create/update/delete/login) tidak pernah diulang.
   var SAFE_RETRY = /^(get|validate|ping)/;
 
+  // Antrean: Apps Script sering membalas 404/lambat bila dibanjiri request paralel -> maks 3 sekaligus,
+  // request tulis (login/update/dll) didahulukan. Request BACA identik yang sedang berjalan digabung jadi satu.
+  var MAXC = 3, active = 0, queue = [], INFLIGHT = {};
+  function pump() {
+    while (active < MAXC && queue.length) {
+      (function (it) {
+        active++;
+        it.task().then(function (v) { active--; it.res(v); pump(); }, function (e) { active--; it.rej(e); pump(); });
+      })(queue.shift());
+    }
+  }
+  function schedule(task, urgent) {
+    return new Promise(function (res, rej) {
+      var it = { task: task, res: res, rej: rej };
+      if (urgent) queue.unshift(it); else queue.push(it);
+      pump();
+    });
+  }
+
   function callServer(fn, args, attempt) {
     attempt = attempt || 0;
+    var dk = null;
+    if (SAFE_RETRY.test(fn) && attempt === 0) {
+      dk = fn + '|' + JSON.stringify(args);
+      if (INFLIGHT[dk]) return INFLIGHT[dk];
+    }
+    var p = callServer_(fn, args, attempt);
+    if (dk) { INFLIGHT[dk] = p; var clr = function () { if (INFLIGHT[dk] === p) delete INFLIGHT[dk]; }; p.then(clr, clr); }
+    else if (!SAFE_RETRY.test(fn)) { var wipe = function () { INFLIGHT = {}; }; p.then(wipe, wipe); } // setelah tulis, baca berikutnya harus segar
+    return p;
+  }
+
+  function callServer_(fn, args, attempt) {
     var url = window.API_URL;
     if (!url || /PASTE_URL/.test(url)) {
       return Promise.reject(new Error('API_URL belum diisi di config.js'));
     }
-    return fetch(url, {
+    return schedule(function () { return fetch(url, {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -27,16 +58,16 @@
     }).then(function (r) {
       if (!r.ok) { var he = new Error('HTTP ' + r.status); he.transient = true; throw he; }
       return r.json();
-    }).then(function (j) {
+    }); }, !SAFE_RETRY.test(fn)).then(function (j) {
       // Server melempar exception (setara failure handler pada google.script.run)
       if (j && j.__gas_error) throw new Error(j.message || 'Server error');
       return j;
     }).catch(function (err) {
       // Gangguan sesaat (HTTP 404/5xx dari Google, jaringan putus) pada fungsi baca -> coba lagi otomatis
       var transient = err && (err.transient || err.name === 'TypeError');
-      if (transient && SAFE_RETRY.test(fn) && attempt < 2) {
-        return new Promise(function (res) { setTimeout(res, 500 * (attempt + 1)); })
-          .then(function () { return callServer(fn, args, attempt + 1); });
+      if (transient && SAFE_RETRY.test(fn) && attempt < 3) {
+        return new Promise(function (res) { setTimeout(res, 250 * (attempt + 1)); })
+          .then(function () { return callServer_(fn, args, attempt + 1); });
       }
       throw err;
     });
@@ -151,6 +182,23 @@ function esc(s) {
 }
 function debounce(fn, d) { var t; return function () { clearTimeout(t); t = setTimeout(fn, d); }; }
 function fmtCurrency(n) { n = Number(n) || 0; return 'Rp ' + n.toLocaleString('id-ID'); }
+/* ===== Cache lokal: layar langsung terisi data terakhir, data baru diambil di belakang ===== */
+function cacheStore_() { try { return localStorage.getItem('pom_token') ? localStorage : sessionStorage; } catch (e) { return null; } }
+function cacheKey_(k) { return 'pom_c_' + ((STATE.user && STATE.user.username) || '') + '_' + k; }
+function cachePut_(k, v) { var s = cacheStore_(); if (!s || !STATE.user) return; try { s.setItem(cacheKey_(k), JSON.stringify(v)); } catch (e) {} }
+function cacheGet_(k) { var s = cacheStore_(); if (!s || !STATE.user) return null; try { return JSON.parse(s.getItem(cacheKey_(k)) || 'null'); } catch (e) { return null; } }
+function cacheClear_() {
+  [localStorage, sessionStorage].forEach(function (s) {
+    try { Object.keys(s).filter(function (k) { return k.indexOf('pom_c_') === 0; }).forEach(function (k) { s.removeItem(k); }); } catch (e) {}
+  });
+}
+function hydrateCache_() {
+  var lk = cacheGet_('lookup'), od = cacheGet_('orders'), st = cacheGet_('stats');
+  if (lk && !STATE.lookup) { STATE.lookup = lk; try { renderScope_(); populateFilters(); } catch (e) {} }
+  if (od && !STATE.orders) STATE.orders = od;
+  if (st && !STATE.stats) STATE.stats = st;
+  if (STATE.orders) { try { updateBell(); } catch (e) {} }
+}
 function fresh(key) { return Date.now() - CACHE[key] < TTL; }
 function nowStamp() {
   var d = new Date(), p = function (x) { return ('0' + x).slice(-2); };
@@ -199,6 +247,7 @@ function api(name, args, ok, fail) {
 }
 
 function forceRelogin() {
+  cacheClear_();
   sessDel('pom_token'); sessDel('pom_user');
   showToast('Sesi berakhir, silakan login kembali.', 'warning');
   setTimeout(resetToLogin, 1200);
@@ -711,15 +760,11 @@ function restoreSessionUI(data) {
   // Buka halaman terakhir (mis. tetap di Orders saat refresh); hanya data halaman itu yang dimuat
   var startPage = store('pom_page');
   if (!startPage || !TITLES[startPage]) startPage = 'dashboard';
-  loadLookup(true);
+  hydrateCache_();      // tampil instan dari data terakhir, lalu disegarkan di bawah
   loadNotifRead_();
-  if (startPage === 'dashboard') {
-    loadOrders(true);
-    if (isAdmin()) loadUsers(true);
-  } else if (startPage !== 'orders') {
-    loadOrders(true);   // data bell notifikasi
-  }
-  navigateTo(startPage);
+  navigateTo(startPage); // data halaman aktif diminta lebih dulu
+  loadLookup(true);
+  if (startPage !== 'orders') loadOrders(true);   // data bell notifikasi (Users dimuat saat halamannya dibuka)
 }
 
 function handleLogout() {
@@ -728,6 +773,7 @@ function handleLogout() {
 
 // Kembali ke halaman login TANPA location.reload() (reload di iframe Apps Script menghasilkan halaman blank)
 function resetToLogin() {
+  cacheClear_();
   document.body.classList.remove('dark'); // login page selalu tema terang
   STATE.token = null; STATE.user = null; STATE.lookup = null; STATE.orders = null;
   STATE.stats = null; STATE.users = null; STATE.page = 'dashboard'; STATE.pageNo = 1; STATE.confirmCb = null;
@@ -801,7 +847,7 @@ function loadLookup(force) {
   if (!force && STATE.lookup && fresh('lookup')) return;
   api('getStoresAndAreas', [STATE.token], function (res) {
     if (!res.success) { lookupFail(res.message); return; }
-    STATE.lookup = res.data; CACHE.lookup = Date.now();
+    STATE.lookup = res.data; CACHE.lookup = Date.now(); cachePut_('lookup', res.data);
     renderScope_();
     populateFilters();
     renderAdminLists();
@@ -838,7 +884,7 @@ function loadDashboard(force) {
   };
   api('getDashboardStats', [STATE.token], function (res) {
     if (!res.success) { fail(res.message); return; }
-    STATE.stats = res.data; CACHE.dashboard = Date.now();
+    STATE.stats = res.data; CACHE.dashboard = Date.now(); cachePut_('stats', res.data);
     renderDashboard(); updateBell();
   }, function () { fail('Gagal memuat dashboard. Periksa koneksi Anda.'); });
 }
@@ -1209,7 +1255,7 @@ function loadOrders(force) {
   };
   api('getOrders', [STATE.token, {}], function (res) {
     if (!res.success) { fail(res.message); return; }
-    STATE.orders = res.data || []; CACHE.orders = Date.now();
+    STATE.orders = res.data || []; CACHE.orders = Date.now(); cachePut_('orders', STATE.orders);
     renderOrders(); updateBell(); if (STATE.page === 'recap') renderRecap(); if (STATE.page === 'gallery') renderGallery();
   }, function () { fail('Gagal memuat order. Periksa koneksi Anda.'); });
 }

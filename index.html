@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css?v=27">
+  <link rel="stylesheet" href="style.css?v=28">
 </head>
 <body>
 
@@ -503,7 +503,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
 <script src="config.js?v=26"></script>
-<script src="app.js?v=27"></script>
+<script src="app.js?v=28"></script>
 <script>if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 <div class="cam-ov hidden" id="camOv">
   <video id="camVideo" playsinline autoplay muted></video>
@@ -516,12 +516,11 @@
       <span class="cam-badge" id="camType">Pickup</span>
     </div>
     <div class="cam-tools">
-      <button type="button" class="cam-btn cam-sm" id="camGridBtn" aria-label="Garis bantu" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></button>
       <button type="button" class="cam-btn cam-sm hidden" id="camTorch" aria-label="Lampu senter" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg></button>
     </div>
   </div>
 
-  <div class="cam-frame" id="camFrame"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i><div class="cam-grid"></div></div>
+  <div class="cam-frame" id="camFrame"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i></div>
 
   <div class="cam-lower">
     <div class="cam-hint" id="camHint"><span class="cam-dot"></span><span id="camHintTx">Memuat kamera...</span></div>

@@ -2401,15 +2401,28 @@ function renderGallery() {
 }
 function glOpen_(i) {
   var it = GL.list[i]; if (!it) return; GL.idx = i;
-  var o = it.o, row = function (l, v) { return '<div><span>' + l + '</span><b>' + esc(v || '-') + '</b></div>'; };
+  var o = it.o, del = isDeliveryOrder(o);
+  var row = function (ico, l, v) {
+    v = String(v || '').trim(); if (!v || v === '-') return '';
+    return '<div class="gl-row"><span class="gl-ri">' + ic(ico, 'sm') + '</span><div><span>' + l + '</span><b>' + esc(v) + '</b></div></div>';
+  };
   var img = $('glLbImg'), fail = $('glLbFail');
   fail.classList.add('hidden');
   if (it.fid) { img.classList.remove('hidden'); img.src = glThumb_(it, 1600); $('glLbDrive').classList.remove('hidden'); $('glLbDrive').href = o.proofValue; }
-  else { img.classList.add('hidden'); img.removeAttribute('src'); fail.textContent = 'Resi: ' + o.proofValue; fail.classList.remove('hidden'); $('glLbDrive').classList.add('hidden'); }
-  $('glLbInfo').innerHTML = row('Order', glRef_(o)) + row('Customer', o.customer) + row('Hamper', o.hamperName + (o.qty ? ' (' + o.qty + ' pcs)' : '')) + row('Store', o.outletName) + row('Tanggal', glDateKey_(o)) + row('Diselesaikan oleh', o.updatedBy);
+  else { img.classList.add('hidden'); img.removeAttribute('src'); fail.innerHTML = ic('truck') + '<small>No. Resi</small><b>' + esc(o.proofValue) + '</b>'; fail.classList.remove('hidden'); $('glLbDrive').classList.add('hidden'); }
+  $('glLbType').textContent = del ? 'Delivery' : 'Pickup';
+  $('glLbType').className = 'gl-lb-pill ' + (del ? 'del' : 'pick');
+  var total = Math.min(GL.list.length, GL.shown);
+  $('glLbCnt').textContent = (i + 1) + ' / ' + total;
+  $('glLbRef').textContent = glRef_(o);
+  $('glLbHamper').textContent = o.hamperName || '-';
+  $('glLbQty').textContent = o.qty ? o.qty + ' pcs' : '';
+  $('glLbQty').classList.toggle('hidden', !o.qty);
+  $('glLbInfo').innerHTML = row('store', 'Store', o.outletName) + row('map', 'Area', o.area) + row('users', 'Customer', o.customer) + row('clock', 'Tanggal', glDateKey_(o)) + row('check', 'Diselesaikan oleh', o.updatedBy);
   $('glPrev').classList.toggle('hidden', i <= 0);
-  $('glNext').classList.toggle('hidden', i >= Math.min(GL.list.length, GL.shown) - 1);
+  $('glNext').classList.toggle('hidden', i >= total - 1);
   $('glLb').classList.remove('hidden'); document.body.classList.add('gl-lock');
+  $('glLb').querySelector('.gl-lb-box').scrollTop = 0;
 }
 function glStep_(d) { var n = GL.idx + d; if (n >= 0 && n < Math.min(GL.list.length, GL.shown)) glOpen_(n); }
 function glClose_() { $('glLb').classList.add('hidden'); $('glLbImg').removeAttribute('src'); document.body.classList.remove('gl-lock'); }

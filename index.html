@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css?v=37">
+  <link rel="stylesheet" href="style.css?v=38">
 </head>
 <body>
 
@@ -217,7 +217,7 @@
       <!-- REKAP HAMPERS -->
       <section id="page-recap" class="page hidden">
         <div class="page-head"><div><h2>Rekap per Hampers</h2><p id="recapSub">Jumlah yang harus disiapkan, dikelompokkan per store atau area</p></div>
-          <div class="rc-actions"><button class="btn btn-secondary" id="recapExportBtn" data-act="recap-export" title="Export rekap ke Excel (untuk distribusi)"><i data-ic="download" data-size="sm"></i> Export</button><button class="btn btn-secondary" id="recapCopyBtn" data-act="recap-copy" title="Salin rekap sebagai teks (siap tempel ke WhatsApp)"><i data-ic="copy" data-size="sm"></i> Salin Rekap</button></div></div>
+          <div class="rc-actions"><button type="button" class="btn-export" id="recapExportBtn" data-act="recap-export" title="Export ke Excel" aria-label="Export ke Excel"><i data-ic="download" data-size="sm"></i><span>Export</span></button><button type="button" class="btn-export" id="recapCopyBtn" data-act="recap-copy" title="Salin rekap sebagai teks (siap tempel ke WhatsApp)" aria-label="Salin rekap"><i data-ic="copy" data-size="sm"></i><span>Salin Rekap</span></button></div></div>
         <div class="card rc-filter" id="recapFilterCard">
           <div class="rc-seg" id="recapGroup" role="tablist">
             <button type="button" class="on" data-act="recap-group" data-v="store"><i data-ic="store" data-size="sm"></i>Per Store</button>

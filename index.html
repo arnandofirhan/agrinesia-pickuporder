@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css?v=25">
+  <link rel="stylesheet" href="style.css?v=26">
 </head>
 <body>
 
@@ -86,6 +86,7 @@
       <div class="nav-group">Menu Utama</div>
       <a href="#" class="nav-item active" data-page="dashboard" title="Dashboard"><i data-ic="dashboard"></i><span class="nav-label">Dashboard</span></a>
       <a href="#" class="nav-item" data-page="orders" title="Orders"><i data-ic="orders"></i><span class="nav-label">Orders</span></a>
+      <a href="#" class="nav-item" data-page="recap" title="Rekap Hamper"><i data-ic="clipboard"></i><span class="nav-label">Rekap Hamper</span></a>
       <div class="admin-only">
         <div class="nav-group">Master Data</div>
         <a href="#" class="nav-item" data-page="users" title="Users"><i data-ic="users"></i><span class="nav-label">Users</span></a>
@@ -102,6 +103,7 @@
   <nav class="bottom-nav" id="bottomNav" aria-label="Menu utama">
     <a href="#" class="nav-item active" data-page="dashboard"><i data-ic="dashboard"></i><span>Dashboard</span></a>
     <a href="#" class="nav-item" data-page="orders"><i data-ic="orders"></i><span>Orders</span></a>
+    <a href="#" class="nav-item" data-page="recap"><i data-ic="clipboard"></i><span>Rekap</span></a>
     <a href="#" class="nav-item admin-only" data-page="users"><i data-ic="users"></i><span>Users</span></a>
     <button type="button" class="bn-more admin-only" id="bnMoreBtn" aria-haspopup="true" aria-expanded="false"><i data-ic="menu"></i><span>Lainnya</span></button>
   </nav>
@@ -203,6 +205,25 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- REKAP HAMPER -->
+      <section id="page-recap" class="page hidden">
+        <div class="page-head"><div><h2>Rekap per Hamper</h2><p>Jumlah yang harus disiapkan, dikelompokkan per store atau area</p></div>
+          <button class="btn btn-secondary" id="recapCopyBtn" data-act="recap-copy"><i data-ic="copy" data-size="sm"></i> Salin Rekap</button></div>
+        <div class="card rc-filter">
+          <div class="rc-seg" id="recapGroup" role="tablist">
+            <button type="button" class="on" data-act="recap-group" data-v="store">Per Store</button>
+            <button type="button" data-act="recap-group" data-v="area">Per Area</button>
+          </div>
+          <div class="rc-fgrid">
+            <div class="search-wrap form-group" style="margin:0"><i data-ic="search"></i><input type="text" id="recapSearch" placeholder="Cari hamper / store / area"></div>
+            <select id="recapStatus"><option value="ready">Perlu Disiapkan (belum selesai)</option><option value="all">Semua Order</option></select>
+            <select id="recapType"><option value="">Semua Tipe</option><option value="Pickup">Pickup</option><option value="Delivery">Delivery</option></select>
+          </div>
+        </div>
+        <div class="rc-sum" id="recapSummary"></div>
+        <div id="recapList"></div>
       </section>
 
       <!-- USERS -->
@@ -407,9 +428,54 @@
   </div>
 </div>
 
+<!-- MODAL: BUKTI SERAH TERIMA -->
+<div id="modalProof" class="modal-overlay">
+  <div class="modal modal-form">
+    <div class="modal-header mh-form"><div class="mh-ico"><i data-ic="camera"></i></div><div class="mh-text"><h3 id="proofTitle">Bukti Serah Terima</h3><small id="proofSub"></small></div><button class="modal-close" data-close><i data-ic="x"></i></button></div>
+    <div class="modal-body">
+      <div class="pf-order" id="proofOrder"></div>
+      <div class="pf-tabs hidden" id="proofTabs">
+        <button type="button" data-act="proof-mode" data-v="resi"><i data-ic="hash" data-size="sm"></i> Nomor Resi</button>
+        <button type="button" data-act="proof-mode" data-v="photo"><i data-ic="camera" data-size="sm"></i> Foto Pesanan</button>
+      </div>
+      <div id="proofResiBox" class="pf-pane hidden">
+        <div class="form-group"><label for="proofResi">Nomor Resi</label><input type="text" id="proofResi" maxlength="60" autocomplete="off" autocapitalize="characters" placeholder="Contoh: JP1234567890"></div>
+        <div class="pf-hint">Isi nomor resi dari ekspedisi / kurir sebagai bukti pengiriman.</div>
+      </div>
+      <div id="proofPhotoBox" class="pf-pane">
+        <div class="pf-drop" id="proofDrop">
+          <div class="pf-drop-ic"><i data-ic="image" data-size="lg"></i></div>
+          <b>Foto pesanan</b>
+          <span>Foto barang saat diserahkan sebagai bukti jika ada komplain</span>
+          <div class="pf-btns">
+            <button type="button" class="btn btn-primary" data-act="proof-cam"><i data-ic="camera" data-size="sm"></i> Ambil Foto</button>
+            <button type="button" class="btn btn-secondary" data-act="proof-gal"><i data-ic="image" data-size="sm"></i> Dari Galeri</button>
+          </div>
+        </div>
+        <div class="pf-prev hidden" id="proofPrev">
+          <img id="proofImg" alt="Foto bukti">
+          <div class="pf-prev-bar"><span id="proofMeta"></span><button type="button" class="btn btn-sm btn-secondary" data-act="proof-clear"><i data-ic="refresh" data-size="sm"></i> Ganti Foto</button></div>
+        </div>
+        <input type="file" id="proofCam" accept="image/*" capture="environment" hidden>
+        <input type="file" id="proofGal" accept="image/*" hidden>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" data-close>Batal</button><button class="btn btn-primary" id="proofSubmitBtn" data-act="proof-submit" disabled>Selesaikan</button></div>
+  </div>
+</div>
+
+<!-- MODAL: LIHAT FOTO BUKTI -->
+<div id="modalPhoto" class="modal-overlay">
+  <div class="modal modal-lg">
+    <div class="modal-header"><h3>Foto Bukti Serah Terima</h3><button class="modal-close" data-close><i data-ic="x"></i></button></div>
+    <div class="modal-body pf-view"><img id="photoViewImg" alt="Foto bukti"><div id="photoViewErr" class="pf-hint hidden">Foto tidak dapat dimuat di sini. Gunakan tombol &ldquo;Buka Foto Asli&rdquo;.</div></div>
+    <div class="modal-footer"><a class="btn btn-outline" id="photoViewOpen" href="#" target="_blank" rel="noopener">Buka Foto Asli</a><button class="btn btn-secondary" data-close>Close</button></div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
-<script src="config.js?v=25"></script>
-<script src="app.js?v=25"></script>
+<script src="config.js?v=26"></script>
+<script src="app.js?v=26"></script>
 <script>if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 </body>
 </html>

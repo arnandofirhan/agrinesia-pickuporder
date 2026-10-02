@@ -2465,11 +2465,14 @@ body.dark .gl-lb-info .gl-ri{color:#6ee7b7;}
 .state-row .es,.mobile-card-list>.es,#ordersEmptyState .es,.gl-empty .es{border:1.5px dashed #cfe3d8;border-radius:20px;background:linear-gradient(180deg,#fcfefd,#f3faf6);}
 .es.span-all{grid-column:1/-1;border:1.5px dashed #cfe3d8;border-radius:20px;background:linear-gradient(180deg,#fcfefd,#f3faf6);}
 .es.err.span-all,.state-row .es.err{border-color:#f3c9c6;background:linear-gradient(180deg,#fffafa,#fff3f2);}
-/* baris tabel kosong: selalu selebar penuh (desktop & HP), tidak ikut layout kartu 2 kolom */
-.app-shell .stack-table tbody tr.state-row{display:block !important;padding:0 !important;margin:0 !important;border:0 !important;background:transparent !important;box-shadow:none !important;transform:none !important;}
-.app-shell .stack-table tbody tr.state-row td{display:block !important;width:100% !important;margin:0 !important;padding:0 !important;border:0 !important;text-align:center !important;background:transparent !important;box-shadow:none !important;}
+/* baris tabel kosong: selebar penuh. Desktop = sel tabel biasa (colspan), HP = blok penuh (tidak ikut layout kartu 2 kolom) */
+.app-shell .stack-table tbody tr.state-row td{padding:4px 0 !important;text-align:center;}
 .app-shell .stack-table tbody tr.state-row td::before{display:none !important;content:none !important;}
-.app-shell .stack-table tbody tr.state-row td:hover,.app-shell .stack-table tbody tr.state-row td:active{background:transparent !important;}
+@media (max-width:768px){
+  .app-shell .stack-table tbody tr.state-row{display:block !important;padding:0 !important;margin:0 !important;border:0 !important;background:transparent !important;box-shadow:none !important;transform:none !important;}
+  .app-shell .stack-table tbody tr.state-row td{display:block !important;width:100% !important;margin:0 !important;padding:0 !important;border:0 !important;text-align:center !important;background:transparent !important;box-shadow:none !important;}
+  .app-shell .stack-table tbody tr.state-row td:hover,.app-shell .stack-table tbody tr.state-row td:active{background:transparent !important;}
+}
 body.dark .app-shell .es b{color:#e3efe8;}
 body.dark .app-shell .es p{color:#97afa3;}
 body.dark .app-shell .es-ic{color:#6ee7b7;background:radial-gradient(circle at 30% 25%,#1b3329,#12261d);box-shadow:0 0 0 8px rgba(52,211,153,.07);}

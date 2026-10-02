@@ -86,7 +86,7 @@ var USER_PAGE = { no: 1, size: 25 };
 var TTL = 90000; // cache dianggap segar selama 90 detik
 var CACHE = { dashboard: 0, orders: 0, lookup: 0, users: 0 };
 var ADMIN_PAGES = ['users', 'stores', 'areas'];
-var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap per Hampers', gallery: 'Galeri Bukti', users: 'Users', stores: 'Stores', areas: 'Area' };
+var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap Hampers', gallery: 'Galeri Bukti', users: 'Users', stores: 'Stores', areas: 'Area' };
 
 /* ============== ICONS (Lucide, 2D flat) ============== */
 var ICONS = {
@@ -1653,7 +1653,7 @@ function renderRecap() {
     return;
   }
   var tile = function (v, l) { return '<div class="rc-tile"><b>' + Number(v).toLocaleString('id-ID') + '</b><span>' + l + '</span></div>'; };
-  $('recapSummary').innerHTML = tile(d.all.total, 'Total pcs') + tile(d.all.list.length, 'Jenis hamper') + tile(d.orders, 'Order') + tile(d.byArea ? d.groups.length : d.storeCount, d.byArea ? 'Area' : 'Store');
+  $('recapSummary').innerHTML = tile(d.all.total, 'Total pcs') + tile(d.all.list.length, 'Jenis hampers') + tile(d.orders, 'Order') + tile(d.byArea ? d.groups.length : d.storeCount, d.byArea ? 'Area' : 'Store');
   var baseF = { status: d.ready ? 'READY' : '', deliveryType: $('recapType').value };
   function go(extra) { return esc(JSON.stringify(Object.assign({}, baseF, extra))); }
   function card(g, cls) {

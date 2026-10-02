@@ -2314,3 +2314,22 @@ body.dark .gl-meta b{color:#6ee7b7;}
   .gl-lb{padding:0;align-items:flex-end;}
   .gl-lb-box{border-radius:22px 22px 0 0;max-height:94%;}
 }
+
+/* GALERI v2 */
+.gl-lb-box{color:#12281d;}
+.gl-lb-info span{color:#6b8277;}
+.gl-lb-info b{color:#12281d;}
+body.dark .gl-lb-box{background:#12201a;color:#e8f3ed;}
+body.dark .gl-lb-info span{color:#8fa89b;}
+body.dark .gl-lb-info b{color:#f1f8f4;}
+body.dark .gl-lb-act .btn-secondary{background:#1b3328;color:#e8f3ed;border-color:#2a4337;}
+body.dark .gl-h{color:#e8f3ed;}
+body.dark .gl-s{color:#8fa89b;}
+@media (min-width:901px){
+  .gl-filter{flex-direction:row;align-items:center;flex-wrap:nowrap;gap:10px;}
+  .gl-top{flex:1 1 240px;min-width:200px;}
+  .gl-panel{display:contents;}
+  .gl-panel>select,.gl-panel>.date-wrap{flex:0 1 150px;min-width:120px;width:auto;}
+  .gl-panel>.date-wrap{display:block;}
+  .gl-panel>.btn{flex:none;padding:0 16px;}
+}

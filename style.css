@@ -1926,3 +1926,10 @@ body.dark .notif-popover .nf-body::-webkit-scrollbar-thumb{background:#2a4638;}
 .icon-btn.bell:not(:has(.bell-badge.hidden)) svg{animation:bellRing 3.5s ease-in-out infinite;transform-origin:50% 12%;}
 @keyframes bellRing{0%,86%,100%{transform:rotate(0)}89%{transform:rotate(14deg)}92%{transform:rotate(-12deg)}95%{transform:rotate(7deg)}98%{transform:rotate(-4deg)}}
 @media (prefers-reduced-motion:reduce){.icon-btn.bell svg{animation:none !important;}}
+
+/* Area klik profil hanya avatar + nama (tidak melebar ke ruang kosong) */
+@media (max-width:820px){
+  .user-wrap{pointer-events:none;}
+  .user-chip{width:fit-content !important;max-width:100% !important;pointer-events:auto;}
+  .user-menu{pointer-events:auto;}
+}

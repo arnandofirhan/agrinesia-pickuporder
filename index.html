@@ -510,9 +510,17 @@
 <div class="gl-lb hidden" id="glLb" role="dialog" aria-modal="true">
   <div class="gl-lb-bg" data-glclose></div>
   <div class="gl-lb-box">
-    <button type="button" class="gl-lb-x" data-glclose aria-label="Tutup">&times;</button>
-    <div class="gl-lb-img"><button type="button" class="gl-nav gl-prev" id="glPrev" aria-label="Sebelumnya">&#8249;</button><img id="glLbImg" alt="Foto bukti"><div class="gl-lb-fail hidden" id="glLbFail">Foto tidak dapat dimuat. Buka lewat Drive.</div><button type="button" class="gl-nav gl-next" id="glNext" aria-label="Berikutnya">&#8250;</button></div>
-    <div class="gl-lb-info" id="glLbInfo"></div>
+    <div class="gl-lb-img">
+      <div class="gl-lb-top"><span class="gl-lb-pill" id="glLbType"></span><span class="gl-lb-pill gl-lb-cnt" id="glLbCnt"></span><button type="button" class="gl-lb-x" data-glclose aria-label="Tutup">&times;</button></div>
+      <button type="button" class="gl-nav gl-prev" id="glPrev" aria-label="Sebelumnya">&#8249;</button>
+      <img id="glLbImg" alt="Foto bukti">
+      <div class="gl-lb-fail hidden" id="glLbFail"></div>
+      <button type="button" class="gl-nav gl-next" id="glNext" aria-label="Berikutnya">&#8250;</button>
+    </div>
+    <div class="gl-lb-body">
+      <div class="gl-lb-head"><div class="gl-lb-ttl"><b id="glLbRef"></b><span id="glLbHamper"></span></div><span class="gl-lb-qty" id="glLbQty"></span></div>
+      <div class="gl-lb-info" id="glLbInfo"></div>
+    </div>
     <div class="gl-lb-act"><a class="btn btn-secondary" id="glLbDrive" target="_blank" rel="noopener">Buka di Drive</a><button type="button" class="btn btn-primary" id="glLbOrder">Lihat Order</button></div>
   </div>
 </div>

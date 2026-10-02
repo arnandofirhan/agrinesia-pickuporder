@@ -2203,3 +2203,14 @@ body.dark .rc-qty{background:rgba(52,211,153,.12);}
   .rc-tile{padding:12px 14px;}
   .rc-tile b{font-size:22px;}
 }
+/* REKAP v3 — search icon & 1 baris */
+.rc-top .search-wrap{position:relative;flex:1;min-width:0;margin:0;}
+.rc-top .search-wrap .icon,.rc-top .search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted);pointer-events:none;z-index:1;}
+.rc-top .search-wrap input{width:100%;padding-left:42px !important;height:46px;box-sizing:border-box;}
+.rc-panel select,.rc-panel .btn{height:46px;box-sizing:border-box;}
+body.dark .rc-top .search-wrap .icon,body.dark .rc-top .search-wrap svg{color:#7f978b;}
+@media (min-width:901px){
+  .rc-filter{display:grid;grid-template-columns:minmax(0,1fr) 190px 150px auto;gap:10px;align-items:center;}
+  .rc-filter .rc-seg{grid-column:1/-1;}
+  .rc-panel{display:contents;}
+}

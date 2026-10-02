@@ -2502,3 +2502,49 @@ body.dark .app-shell .es.err.span-all,body.dark .app-shell .state-row .es.err{bo
 /* Riwayat update: catatan "Bukti: Foto/Resi" pada order selesai = hijau (oranye hanya untuk pembatalan) */
 .od-tl-item.is-ok .od-tl-note{color:#0b6b48;background:#e4f6ec;border:1px solid #c7e8d6;font-weight:600;}
 body.dark .od-tl-item.is-ok .od-tl-note{color:#7ff0c3;background:#143026;border-color:#24503f;}
+
+/* ===== GALERI v2: daftar ringkas (tabel di desktop, baris kartu di HP) ===== */
+.gl-grid{display:flex !important;flex-direction:column;gap:8px;grid-template-columns:none;}
+.gl-grid .gl-empty{width:100%;}
+.gl-head{display:none;}
+.gl-card{display:grid;align-items:center;gap:2px 12px;padding:10px 12px;border-radius:16px;transform:none;position:relative;}
+.gl-card:hover,.gl-card:focus-visible{transform:none;border-color:#9fd8bd;box-shadow:0 8px 20px -12px rgba(10,60,40,.5);}
+.gl-card .gl-media{grid-area:media;position:relative;width:60px;height:60px;aspect-ratio:auto;border-radius:12px;overflow:hidden;}
+.gl-card .gl-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.gl-card .gl-resi{padding:0;gap:0;}
+.gl-card .gl-resi svg{width:26px;height:26px;}
+.gl-card .gl-fb{font-size:0;}
+.gl-card .gl-fb svg{width:22px;height:22px;}
+.gl-card .gc{min-width:0;overflow-wrap:anywhere;word-break:break-word;font-size:12.5px;color:var(--text);line-height:1.35;}
+.gl-card .gc-ref{grid-area:ref;display:flex;flex-direction:column;gap:1px;}
+.gl-card .gc-ref b{font-size:13.5px;font-weight:800;color:var(--primary-dark);}
+.gl-card .gc-ref small{font-size:11.5px;color:var(--muted);font-weight:600;}
+.gl-card .gc-h{grid-area:h;font-weight:600;}
+.gl-card .gc-st{grid-area:st;color:var(--muted);font-size:11.5px;}
+.gl-card .gc-dt{grid-area:dt;color:var(--muted);font-size:11.5px;white-space:nowrap;text-align:right;}
+.gl-card .gc-tp{grid-area:tp;justify-self:end;}
+.gl-card .gl-badge{position:static;display:inline-block;backdrop-filter:none;}
+.gl-chev{display:none;}
+/* HP */
+@media (max-width:768px){
+  .gl-card{grid-template-columns:60px minmax(0,1fr) auto;grid-template-areas:"media ref tp" "media h h" "media st dt";}
+  .gl-card .gc-h{margin-top:2px;}
+}
+/* Desktop = tabel */
+@media (min-width:769px){
+  .gl-grid{gap:6px;}
+  .gl-head,.gl-card{display:grid;grid-template-columns:60px 150px minmax(0,1.7fr) minmax(0,1fr) 104px 92px 18px;gap:14px;}
+  .gl-head{padding:4px 12px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7a8f84;}
+  .gl-card{grid-template-areas:"media ref h st dt tp chev";padding:8px 12px;}
+  .gl-card .gc-dt{text-align:left;color:var(--text);font-size:12.5px;}
+  .gl-card .gc-st{color:var(--text);font-size:12.5px;}
+  .gl-card .gc-tp{justify-self:start;}
+  .gl-chev{display:block;grid-area:chev;color:#9db8aa;transition:transform .15s,color .15s;}
+  .gl-card:hover .gl-chev{transform:translateX(3px);color:var(--primary);}
+}
+body.dark .gl-card .gc{color:#e8f3ed;}
+body.dark .gl-card .gc-ref b{color:#6ee7b7;}
+body.dark .gl-card .gc-ref small,body.dark .gl-card .gc-st,body.dark .gl-card .gc-dt{color:#8fa89b;}
+body.dark .gl-head{color:#8aa396;}
+@media (min-width:769px){body.dark .gl-card .gc-st,body.dark .gl-card .gc-dt{color:#e8f3ed;}}
+body.dark .gl-card:hover,body.dark .gl-card:focus-visible{border-color:#2f6b52;}

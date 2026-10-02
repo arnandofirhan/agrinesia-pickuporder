@@ -86,10 +86,15 @@ var USER_PAGE = { no: 1, size: 25 };
 var TTL = 90000; // cache dianggap segar selama 90 detik
 var CACHE = { dashboard: 0, orders: 0, lookup: 0, users: 0 };
 var ADMIN_PAGES = ['users', 'stores', 'areas'];
-var TITLES = { dashboard: 'Dashboard', orders: 'Orders', users: 'Users', stores: 'Stores', areas: 'Areas' };
+var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap Hamper', users: 'Users', stores: 'Stores', areas: 'Areas' };
 
 /* ============== ICONS (Lucide, 2D flat) ============== */
 var ICONS = {
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  hash: '<line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/>',
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
@@ -465,6 +470,7 @@ function bindEvents() {
     $(id).addEventListener('change', rerender);
   });
   $('resetFilterBtn').addEventListener('click', resetFilters);
+  bindProofRecap_();
   $('exportOrdersBtn').addEventListener('click', exportOrdersExcel);
   $('orderPageSize').addEventListener('change', function () { PAGE_SIZE = +this.value || 25; STATE.pageNo = 1; renderOrders(); });
   $('orderPages').addEventListener('click', function (e) {
@@ -542,6 +548,15 @@ function bindEvents() {
     else if (act === 'revert') { var ro = findOrder(v); if (ro) askRevert(ro); }
     else if (act === 'revert-chip') { $('revertReason').value = v; syncRevertBtn(); $('revertReason').focus(); }
     else if (act === 'revert-submit') submitRevert();
+    else if (act === 'proof-mode') setProofMode_(v);
+    else if (act === 'proof-cam') $('proofCam').click();
+    else if (act === 'proof-gal') $('proofGal').click();
+    else if (act === 'proof-clear') { $('proofCam').value = ''; $('proofGal').value = ''; setProofPhoto_(''); }
+    else if (act === 'proof-submit') submitProof_();
+    else if (act === 'proof-view') openProofPhoto_(v);
+    else if (act === 'copy-resi') copyText_(v, 'Nomor resi disalin');
+    else if (act === 'recap-group') { RECAP.group = v; renderRecap(); }
+    else if (act === 'recap-copy') copyRecap_();
     else if (act === 'retry') {
       if (v === 'dashboard') { STATE.stats = null; loadDashboard(true); }
       else if (v === 'orders') { navigateTo('orders'); loadOrders(true); }
@@ -749,6 +764,7 @@ function navigateTo(page) {
 
   if (page === 'dashboard') loadDashboard(false);
   else if (page === 'orders') { renderOrders(); if (!fresh('orders')) loadOrders(false); }
+  else if (page === 'recap') { renderRecap(); if (!fresh('orders')) loadOrders(false); }
   else if (page === 'users') loadUsers(false);
   else {
     if (STATE.lookup) renderAdminLists();
@@ -1165,7 +1181,7 @@ function loadOrders(force) {
   api('getOrders', [STATE.token, {}], function (res) {
     if (!res.success) { fail(res.message); return; }
     STATE.orders = res.data || []; CACHE.orders = Date.now();
-    renderOrders(); updateBell();
+    renderOrders(); updateBell(); if (STATE.page === 'recap') renderRecap();
   }, function () { fail('Gagal memuat order. Periksa koneksi Anda.'); });
 }
 
@@ -1327,6 +1343,7 @@ function renderOrderDetail(o) {
         dsub('Store', o.outletName) + dsub('Area', o.area) + '</div>' +
       '<div class="od-box od-full"><div class="od-box-title">' + ic('package', 'sm') + ' Pesanan</div>' +
         dsub('Hamper', o.hamperName) + '<div class="od-two">' + dsub('Tipe', o.deliveryType) + dsub('Order Number', o.orderReference) + '</div></div>' +
+      proofBoxHtml_(o) +
       '<div class="od-box od-full od-log"><div class="od-box-title">' + ic('clock', 'sm') + ' Riwayat Update</div>' +
         '<div id="odTimeline" class="od-tl"><div class="od-tl-empty">Memuat riwayat...</div></div></div>' +
     '</div>';
@@ -1363,7 +1380,7 @@ function loadOrderTimeline_(o) {
       var parts = String(r.notes || '').split(' | '), reason = '', extra = [];
       parts.forEach(function (p) {
         if (/^Alasan:/.test(p)) reason = p.replace(/^Alasan:\s*/, '');
-        else if (/^(Tgl Kirim sebelumnya|Diselesaikan oleh):/.test(p)) extra.push(p);
+        else if (/^(Tgl Kirim sebelumnya|Diselesaikan oleh|Bukti sebelumnya):/.test(p)) extra.push(p);
       });
       if (!rev && r.notes) reason = r.notes;
       return '<div class="od-tl-item ' + (rev ? 'is-rev' : 'is-ok') + '"><span class="od-tl-dot">' + ic(rev ? 'undo' : 'check', 'sm') + '</span>' +
@@ -1376,20 +1393,133 @@ function loadOrderTimeline_(o) {
   }, function () { var b = $('odTimeline'); if (b) b.innerHTML = '<div class="od-tl-empty">Gagal memuat riwayat.</div>'; });
 }
 
+/* ============== BUKTI SERAH TERIMA (saat Selesaikan order) ============== */
+var PROOF = { ref: null, delivery: false, mode: 'photo', photo: '', busy: false };
+function proofThumb_(url, sz) {
+  var m = String(url || '').match(/\/d\/([\w-]+)/);
+  return m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w' + (sz || 800) : '';
+}
 function askComplete(o) {
   var delivery = isDeliveryOrder(o);
-  var target = delivery ? 'Completed Delivery' : 'Completed Pickup';
-  var title = delivery ? 'Complete Delivery Order?' : 'Complete Pickup Order?';
-  openConfirm(title,
-    'Apakah Anda yakin order <b>' + esc(o.orderReference) + '</b> sudah selesai diproses?<br><small>Status akan berubah menjadi <b>' + target + '</b>.</small>',
-    delivery ? 'Complete Delivery' : 'Complete Pickup',
-    function () { completeOrder(o.orderReference); }, 'check');
+  PROOF = { ref: o.orderReference, delivery: delivery, mode: delivery ? 'resi' : 'photo', photo: '', busy: false };
+  $('proofTitle').textContent = delivery ? 'Bukti Penerimaan' : 'Bukti Pengambilan';
+  $('proofSub').textContent = delivery ? 'Isi nomor resi atau lampirkan foto pesanan' : 'Lampirkan foto pesanan yang diambil customer';
+  $('proofOrder').innerHTML = '<div class="pf-oref">' + ic(delivery ? 'truck' : 'package', 'sm') + '<b>' + esc(o.orderReference) + '</b>' + typeChip(o.deliveryType) + '</div>' +
+    '<div class="pf-ometa">' + esc(o.customer || '-') + ' &middot; ' + esc(o.hamperName || '-') + ' &middot; ' + esc(o.qty) + ' pcs</div>';
+  $('proofTabs').classList.toggle('hidden', !delivery);
+  $('proofResi').value = '';
+  $('proofCam').value = ''; $('proofGal').value = '';
+  setProofPhoto_('');
+  $('proofSubmitBtn').innerHTML = ic('check', 'sm') + ' ' + (delivery ? 'Complete Delivery' : 'Complete Pickup');
+  setProofMode_(PROOF.mode);
+  openModal('modalProof');
+}
+function setProofMode_(m) {
+  if (m !== 'resi' && m !== 'photo') return;
+  if (m === 'resi' && !PROOF.delivery) m = 'photo';
+  PROOF.mode = m;
+  Array.prototype.forEach.call(document.querySelectorAll('#proofTabs button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === m); });
+  $('proofResiBox').classList.toggle('hidden', m !== 'resi');
+  $('proofPhotoBox').classList.toggle('hidden', m !== 'photo');
+  syncProofBtn_();
+  if (m === 'resi') setTimeout(function () { try { $('proofResi').focus(); } catch (e) {} }, 200);
+}
+function setProofPhoto_(dataUrl, meta) {
+  PROOF.photo = dataUrl || '';
+  $('proofPrev').classList.toggle('hidden', !dataUrl);
+  $('proofDrop').classList.toggle('hidden', !!dataUrl);
+  if (dataUrl) { $('proofImg').src = dataUrl; $('proofMeta').textContent = meta || ''; } else $('proofImg').removeAttribute('src');
+  syncProofBtn_();
+}
+function syncProofBtn_() {
+  var ok = PROOF.mode === 'resi' ? $('proofResi').value.trim().length >= 4 : !!PROOF.photo;
+  $('proofSubmitBtn').disabled = !ok || PROOF.busy;
+}
+// Kecilkan foto (maks 1280px, JPEG) agar upload cepat & hemat kuota
+function shrinkImage_(file, cb) {
+  var rd = new FileReader();
+  rd.onerror = function () { cb('Foto tidak dapat dibaca. Coba lagi.'); };
+  rd.onload = function () {
+    var img = new Image();
+    img.onerror = function () { cb('Format foto tidak didukung. Gunakan foto JPG/PNG.'); };
+    img.onload = function () {
+      try {
+        var max = 1280, sc = Math.min(1, max / Math.max(img.width, img.height));
+        var cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(img.width * sc)); cv.height = Math.max(1, Math.round(img.height * sc));
+        var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height);
+        cb(null, cv.toDataURL('image/jpeg', 0.72));
+      } catch (e) { cb('Gagal memproses foto.'); }
+    };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function handleProofFile_(file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type || '')) { showToast('File harus berupa gambar.', 'warning'); return; }
+  PROOF.busy = true; syncProofBtn_();
+  shrinkImage_(file, function (err, dataUrl) {
+    PROOF.busy = false;
+    if (err) { showToast(err, 'error'); syncProofBtn_(); return; }
+    setProofPhoto_(dataUrl, 'Ukuran ' + Math.round(dataUrl.length * 0.75 / 1024) + ' KB');
+  });
+}
+function submitProof_() {
+  var proof;
+  if (PROOF.mode === 'resi') {
+    var resi = $('proofResi').value.trim().replace(/\s+/g, ' ').toUpperCase();
+    if (resi.length < 4) { showToast('Nomor resi minimal 4 karakter.', 'warning'); return; }
+    proof = { type: 'RESI', resi: resi };
+  } else {
+    if (!PROOF.photo) { showToast('Foto bukti wajib dilampirkan.', 'warning'); return; }
+    proof = { type: 'PHOTO', photo: PROOF.photo };
+  }
+  var ref = PROOF.ref;
+  closeModal('modalProof');
+  completeOrder(ref, proof);
+}
+function copyText_(text, okMsg) {
+  var done = function () { showToast(okMsg || 'Disalin', 'success'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, function () { copyFallback_(text, done); }); return; }
+  copyFallback_(text, done);
+}
+function copyFallback_(text, done) {
+  var t = document.createElement('textarea'); t.value = text; t.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(t); t.select();
+  try { document.execCommand('copy'); done(); } catch (e) { showToast('Gagal menyalin.', 'error'); }
+  t.remove();
+}
+function openProofPhoto_(ref) {
+  var o = findOrder(ref); if (!o || !o.proofValue) return;
+  var img = $('photoViewImg'), err = $('photoViewErr');
+  err.classList.add('hidden'); img.classList.remove('hidden');
+  img.onerror = function () { img.classList.add('hidden'); err.classList.remove('hidden'); };
+  img.src = proofThumb_(o.proofValue, 1600) || o.proofValue;
+  $('photoViewOpen').href = o.proofValue;
+  openModal('modalPhoto');
+}
+function proofBoxHtml_(o) {
+  if (isReadyStatus(o.pickupStatus)) return '';
+  var delivery = isDeliveryOrder(o), t = o.proofType, v = o.proofValue, body;
+  if (t === 'RESI' && v) {
+    body = '<div class="pf-resi"><div><small>Nomor Resi</small><b class="mono">' + esc(v) + '</b></div>' +
+      '<button type="button" class="btn btn-sm btn-secondary" data-act="copy-resi" data-v="' + esc(v) + '">' + ic('copy', 'sm') + ' Salin</button></div>';
+  } else if (t === 'PHOTO' && v) {
+    var th = proofThumb_(v, 600);
+    body = '<button type="button" class="pf-thumb" data-act="proof-view" data-v="' + esc(o.orderReference) + '" title="Lihat foto">' +
+      (th ? '<img src="' + esc(th) + '" alt="Foto bukti" loading="lazy" onerror="this.parentNode.classList.add(\'is-err\')">' : '') +
+      '<span class="pf-thumb-ph">' + ic('image', 'lg') + '<em>Lihat foto bukti</em></span></button>';
+  } else {
+    body = '<div class="od-tl-empty">Tidak ada bukti (order diselesaikan sebelum fitur bukti tersedia).</div>';
+  }
+  return '<div class="od-box od-full"><div class="od-box-title">' + ic('camera', 'sm') + ' ' + (delivery ? 'Bukti Penerimaan' : 'Bukti Pengambilan') + '</div>' + body + '</div>';
 }
 
-function completeOrder(ref) {
+function completeOrder(ref, proof) {
   runAction({
-    processing: 'Memproses order...',
-    call: 'updateOrderStatus', args: [STATE.token, ref, ''],
+    processing: proof && proof.type === 'PHOTO' ? 'Mengunggah foto & memproses...' : 'Memproses order...',
+    call: 'updateOrderStatus', args: [STATE.token, ref, '', proof],
     okMsg: 'Order berhasil diselesaikan',
     errMsg: 'Gagal memperbarui order.',
     onOk: function (res) {
@@ -1397,20 +1527,100 @@ function completeOrder(ref) {
       var o = findOrder(ref);
       var prev = o ? o.pickupStatus : 'READY_FOR_PICKUP';
       var ns = res.data.newStatus;
-      if (o) { o.pickupStatus = ns; o.updatedAt = nowStamp(); o.deliveryDate = nowStamp().slice(0, 10).replace(/-/g, '/'); o.updatedBy = STATE.user.name || STATE.user.username; }
+      if (o) { o.pickupStatus = ns; o.updatedAt = nowStamp(); o.deliveryDate = nowStamp().slice(0, 10).replace(/-/g, '/'); o.updatedBy = STATE.user.name || STATE.user.username; o.proofType = res.data.proofType || ''; o.proofValue = res.data.proofValue || ''; }
       if (STATE.stats) {
         if (prev === 'READY_FOR_PICKUP') STATE.stats.readyForPickup = Math.max(0, STATE.stats.readyForPickup - 1);
         if (prev === 'READY_FOR_DELIVERY') STATE.stats.readyForDelivery = Math.max(0, STATE.stats.readyForDelivery - 1);
         if (ns === 'COMPLETED_PICKUP') STATE.stats.completedPickup++;
         if (ns === 'COMPLETED_DELIVERY') STATE.stats.completedDelivery++;
       }
-      renderOrders(); renderDashboard_safe(); updateBell();
+      renderOrders(); renderDashboard_safe(); updateBell(); if (STATE.page === 'recap') renderRecap();
     },
     after: function () {
       closeAllModals();
       loadOrders(true); loadDashboard(true); // sinkronisasi diam-diam dengan server
     }
   });
+}
+
+/* ============== REKAP PER HAMPER (daftar yang harus disiapkan) ============== */
+var RECAP = { group: 'store', data: null };
+function bindProofRecap_() {
+  $('proofResi').addEventListener('input', syncProofBtn_);
+  $('proofResi').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !$('proofSubmitBtn').disabled) submitProof_(); });
+  $('proofCam').addEventListener('change', function () { handleProofFile_(this.files && this.files[0]); });
+  $('proofGal').addEventListener('change', function () { handleProofFile_(this.files && this.files[0]); });
+  $('recapSearch').addEventListener('input', debounce(renderRecap, 150));
+  ['recapStatus', 'recapType'].forEach(function (id) { $(id).addEventListener('change', renderRecap); });
+}
+function recapCompute_() {
+  var st = $('recapStatus').value, tp = $('recapType').value, q = $('recapSearch').value.trim().toLowerCase();
+  var byArea = RECAP.group === 'area';
+  var rows = (STATE.orders || []).filter(function (o) {
+    if (st === 'ready' && !isReadyStatus(o.pickupStatus)) return false;
+    if (tp && (tp === 'Delivery') !== isDeliveryOrder(o)) return false;
+    if (q && [o.hamperName, o.outletName, o.area].join(' ').toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  });
+  var groups = {}, all = { name: 'Total Keseluruhan', total: 0, orders: 0, hampers: {}, isAll: true }, stores = {};
+  function add(g, qty, hn) {
+    g.total += qty; g.orders++;
+    var h = g.hampers[hn] || (g.hampers[hn] = { name: hn, qty: 0, orders: 0 }); h.qty += qty; h.orders++;
+  }
+  rows.forEach(function (o) {
+    var qty = Number(o.qty) || 0, hn = String(o.hamperName || '').trim() || '(Tanpa nama hamper)';
+    var key = byArea ? (o.area || '') : (o.outletName || '');
+    var g = groups[key] || (groups[key] = { name: key || (byArea ? 'Tanpa Area' : 'Tanpa Store'), key: key, total: 0, orders: 0, hampers: {}, stores: {} });
+    add(g, qty, hn); add(all, qty, hn);
+    if (o.outletName) { g.stores[o.outletName] = 1; stores[o.outletName] = 1; }
+  });
+  var nat = function (a, b) { return String(a).localeCompare(String(b), 'id', { numeric: true, sensitivity: 'base' }); };
+  var list = Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) { return nat(a.name, b.name); });
+  [all].concat(list).forEach(function (g) { g.list = Object.keys(g.hampers).map(function (k) { return g.hampers[k]; }).sort(function (a, b) { return nat(a.name, b.name); }); });
+  return { groups: list, all: all, orders: rows.length, storeCount: Object.keys(stores).length, byArea: byArea, ready: st === 'ready' };
+}
+function renderRecap() {
+  var box = $('recapList'); if (!box) return;
+  Array.prototype.forEach.call(document.querySelectorAll('#recapGroup button'), function (b) { b.classList.toggle('on', b.getAttribute('data-v') === RECAP.group); });
+  if (!STATE.orders) {
+    $('recapSummary').innerHTML = '';
+    box.innerHTML = '<div class="sk" style="height:120px;border-radius:16px"></div><div class="sk" style="height:120px;border-radius:16px;margin-top:10px"></div>';
+    return;
+  }
+  var d = RECAP.data = recapCompute_();
+  $('recapCopyBtn').disabled = !d.orders;
+  if (!d.orders) {
+    $('recapSummary').innerHTML = '';
+    box.innerHTML = '<div class="card"><div class="empty-state">' + ic('package') + '<p>' + (d.ready ? 'Tidak ada order yang perlu disiapkan.' : 'Tidak ada order ditemukan.') + '</p></div></div>';
+    return;
+  }
+  var tile = function (v, l) { return '<div class="rc-tile"><b>' + Number(v).toLocaleString('id-ID') + '</b><span>' + l + '</span></div>'; };
+  $('recapSummary').innerHTML = tile(d.all.total, 'Total pcs') + tile(d.all.list.length, 'Jenis hamper') + tile(d.orders, 'Order') + tile(d.byArea ? d.groups.length : d.storeCount, d.byArea ? 'Area' : 'Store');
+  function card(g, cls) {
+    var jump = '';
+    if (!g.isAll) { jump = ' data-act="' + (d.byArea ? 'jump-area' : 'jump-store') + '" data-v="' + esc(g.key || '__NONE__') + '" title="Lihat order ' + esc(g.name) + '" tabindex="0" role="button"'; }
+    var sub = (d.byArea && !g.isAll) ? Object.keys(g.stores).length + ' store &middot; ' : '';
+    return '<div class="rc-card ' + (cls || '') + '"><div class="rc-head' + (g.isAll ? '' : ' clickable') + '"' + jump + '>' +
+      '<div class="rc-gname">' + ic(g.isAll ? 'layers' : (d.byArea ? 'map' : 'store'), 'sm') + '<span>' + esc(g.name) + '</span></div>' +
+      '<div class="rc-gmeta"><b>' + g.total.toLocaleString('id-ID') + ' pcs</b><span>' + sub + g.orders + ' order</span></div></div>' +
+      '<div class="rc-body">' + g.list.map(function (h) {
+        return '<div class="rc-row"><span class="rc-hn">' + esc(h.name) + '</span><span class="rc-ord">' + h.orders + ' order</span><b class="rc-qty">' + h.qty.toLocaleString('id-ID') + '<small>pcs</small></b></div>';
+      }).join('') + '</div></div>';
+  }
+  box.innerHTML = (d.groups.length > 1 ? card(d.all, 'rc-total') : '') + d.groups.map(function (g) { return card(g); }).join('');
+}
+function copyRecap_() {
+  var d = RECAP.data; if (!d || !d.orders) { showToast('Tidak ada data untuk disalin.', 'warning'); return; }
+  var p = function (x) { return ('0' + x).slice(-2); }, n = new Date();
+  var out = ['*REKAP HAMPER - ' + (d.byArea ? 'PER AREA' : 'PER STORE') + (d.ready ? ' (PERLU DISIAPKAN)' : '') + '*',
+    p(n.getDate()) + '-' + p(n.getMonth() + 1) + '-' + n.getFullYear() + ' ' + p(n.getHours()) + ':' + p(n.getMinutes()), ''];
+  d.groups.forEach(function (g) {
+    out.push('*' + g.name + '* (' + g.total + ' pcs)');
+    g.list.forEach(function (h) { out.push('- ' + h.name + ': ' + h.qty + ' pcs'); });
+    out.push('');
+  });
+  out.push('*TOTAL: ' + d.all.total + ' pcs*');
+  copyText_(out.join('\n'), 'Rekap disalin');
 }
 /* ============== BATALKAN STATUS SELESAI (ADMIN) ============== */
 var REVERT_REF = null;
@@ -1446,7 +1656,7 @@ function submitRevert() {
       var o = findOrder(ref);
       var prev = o ? o.pickupStatus : '';
       var ns = res.data.newStatus;
-      if (o) { o.pickupStatus = ns; o.deliveryDate = ''; o.updatedBy = STATE.user.name || STATE.user.username; o.updatedAt = nowStamp(); }
+      if (o) { o.proofType = ''; o.proofValue = ''; o.pickupStatus = ns; o.deliveryDate = ''; o.updatedBy = STATE.user.name || STATE.user.username; o.updatedAt = nowStamp(); }
       if (STATE.stats) {
         if (prev === 'COMPLETED_PICKUP') STATE.stats.completedPickup = Math.max(0, STATE.stats.completedPickup - 1);
         if (prev === 'COMPLETED_DELIVERY') STATE.stats.completedDelivery = Math.max(0, STATE.stats.completedDelivery - 1);
@@ -1968,7 +2178,7 @@ function exportOrdersExcel() {
     { h: 'Phone', w: 16, a: 'left' }, { h: 'Store', w: 26, a: 'left' }, { h: 'Area', w: 15, a: 'left' },
     { h: 'Hamper', w: 36, a: 'left' }, { h: 'Tipe', w: 11, a: 'center' }, { h: 'Qty', w: 8, a: 'center' },
     { h: 'Revenue (Rp)', w: 16, a: 'right' }, { h: 'Tgl Kirim', w: 13, a: 'center' }, { h: 'Status', w: 20, a: 'center' },
-    { h: 'Diupdate Oleh', w: 17, a: 'left' }, { h: 'Diupdate Pada', w: 19, a: 'center' }
+    { h: 'Diupdate Oleh', w: 17, a: 'left' }, { h: 'Diupdate Pada', w: 19, a: 'center' }, { h: 'Bukti Serah Terima', w: 36, a: 'left' }
   ];
   var N = cols.length;
   ws.columns = cols.map(function (c) { return { width: c.w }; });
@@ -2000,7 +2210,8 @@ function exportOrdersExcel() {
   rows.forEach(function (o, i) {
     var r = ws.getRow(7 + i); r.height = 21;
     var vals = [i + 1, o.orderReference || '-', o.customer || '-', String(o.phone || '-'), o.outletName || '-', o.area || '-', o.hamperName || '-', o.deliveryType || '-',
-      Number(o.qty) || 0, Number(o.revenue) || 0, fmtDate(o.deliveryDate) || '-', statusLabel_(o.pickupStatus), o.updatedBy || '-', fmtDate(o.updatedAt) || '-'];
+      Number(o.qty) || 0, Number(o.revenue) || 0, fmtDate(o.deliveryDate) || '-', statusLabel_(o.pickupStatus), o.updatedBy || '-', fmtDate(o.updatedAt) || '-',
+      o.proofType === 'RESI' ? 'Resi: ' + o.proofValue : (o.proofType === 'PHOTO' ? o.proofValue : '-')];
     vals.forEach(function (v, j) {
       var cell = r.getCell(j + 1); cell.value = v; cell.border = box;
       cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF1B2B23' } };

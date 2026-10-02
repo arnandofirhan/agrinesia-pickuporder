@@ -2229,3 +2229,12 @@ body.dark .date-wrap.empty input[type=date]{color:transparent;}
   .fc .filter-grid>.date-wrap{display:none;}
   .fc.filters-open .filter-grid>.date-wrap{display:block;grid-column:span 2;}
 }
+
+/* chips dashboard & rekap klik */
+.kc.kc-top{max-width:100%;cursor:pointer;}
+.kc.kc-top b{overflow:hidden;text-overflow:ellipsis;max-width:150px;display:inline-block;vertical-align:bottom;}
+.kc.kc-top:hover{filter:brightness(.95);}
+.rc-head.clickable>svg:last-child{flex:none;color:var(--muted);}
+.rc-total .rc-head>svg:last-child{color:#cdeedd;}
+.rc-row.clickable{cursor:pointer;transition:background .15s;}
+.rc-row.clickable:hover,.rc-row.clickable:active{background:rgba(16,185,129,.08);}

@@ -958,11 +958,23 @@ function rankList(obj, kind) {
   var keys = Object.keys(obj).sort(function (a, b) { return obj[b] - obj[a]; });
   if (!keys.length) return '<div class="no-data">Tidak ada data.</div>';
   var max = obj[keys[0]] || 1;
-  return '<div class="rank-list' + (kind === 'area' ? ' single' : '') + '">' + keys.map(function (k) {
+  var html = '<div class="rank-wrap"><div class="rank-list' + (kind === 'area' ? ' single' : '') + '">' + keys.map(function (k, i) {
     var v = k === 'Unknown' ? '__NONE__' : k;
-    return '<div class="rank-item clickable" tabindex="0" role="button" title="Lihat order ' + esc(k) + '" data-act="jump-' + kind + '" data-v="' + esc(v) + '"><div class="rank-top"><span>' + esc(k) + '</span><b>' + obj[k] + '</b></div>' +
+    return '<div class="rank-item clickable' + (i >= 5 ? ' rk-extra' : '') + '" tabindex="0" role="button" title="Lihat order ' + esc(k) + '" data-act="jump-' + kind + '" data-v="' + esc(v) + '"><div class="rank-top"><span>' + esc(k) + '</span><b>' + obj[k] + '</b></div>' +
       '<div class="bar"><i style="width:' + Math.max(4, Math.round(obj[k] / max * 100)) + '%"></i></div></div>';
   }).join('') + '</div>';
+  if (keys.length > 5) html += '<button type="button" class="rk-more" onclick="rkMore_(this)" data-n="' + keys.length + '">Lihat semua (' + keys.length + ')</button>';
+  return html + '</div>';
+}
+function rkMore_(b) {
+  var w = b.parentNode, on = w.classList.toggle('expanded');
+  b.textContent = on ? 'Ringkas' : 'Lihat semua (' + b.getAttribute('data-n') + ')';
+}
+function dashTab_(t) {
+  var g = $('dashSplit'); if (!g) return;
+  g.classList.toggle('show-store', t === 'store');
+  var bs = document.querySelectorAll('#dashTabs button');
+  for (var i = 0; i < bs.length; i++) bs[i].classList.toggle('on', bs[i].getAttribute('data-t') === t);
 }
 
 function renderDashboard() {
@@ -989,6 +1001,9 @@ function renderDashboard() {
     return '<div class="kpi clickable ' + c.c + '" tabindex="0" role="button" title="Lihat order: ' + c.l + '" data-act="' + (c.act || 'goto-orders') + '" data-v="' + c.st + '" data-dt="' + c.dt + '"' + (c.pct ? ' style="--p:' + (Number(c.v) || 0) + '"' : '') + '><div class="kpi-icon">' + ic(c.i) + '</div><div class="kpi-label">' + c.l + '</div><div class="kpi-value">' + (c.money ? fmtCurrency(c.v) : c.pct ? String(c.v).replace('.', ',') + '%' : Number(c.v).toLocaleString('id-ID')) + '</div><div class="kpi-sub">' + c.sub + '</div>' + (c.pct ? '<div class="kpi-bar"><i style="width:' + Math.min(100, c.v) + '%"></i></div>' : '') + '<span class="kpi-go">' + ic('chevRight', 'sm') + '</span></div>';
   }).join('');
 
+  var dtA = $('dtArea'), dtS = $('dtStore');
+  if (dtA) dtA.textContent = Object.keys(s.byArea || {}).length;
+  if (dtS) dtS.textContent = Object.keys(s.byStore || {}).length;
   $('areaSummary').innerHTML = rankList(s.byArea, 'area');
   $('storeSummary').innerHTML = rankList(s.byStore, 'store');
 }

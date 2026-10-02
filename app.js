@@ -1083,7 +1083,7 @@ function rankList(obj, kind) {
 function hideSplitForStore_() {
   var g = $('dashSplit'); if (!g) return;
   var role = STATE.user && (STATE.user.role === 'STORE_USER' ? 'STORE' : STATE.user.role);
-  g.style.display = role === 'STORE' ? 'none' : '';   // user Store hanya melihat store-nya sendiri: ringkasan ini redundan
+  if (role === 'STORE') g.style.setProperty('display', 'none', 'important'); else g.style.removeProperty('display');   // user Store hanya melihat store-nya sendiri: ringkasan ini redundan
 }
 function rkMore_(b) {
   var w = b.parentNode, on = w.classList.toggle('expanded');

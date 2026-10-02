@@ -2492,3 +2492,9 @@ body.dark .app-shell .es.err.span-all,body.dark .app-shell .state-row .es.err{bo
   .cam-rev-bar{order:2;margin:0 auto;width:100%;max-width:520px;padding:16px 20px 24px;background:transparent;box-sizing:border-box;}
   .cam-rbtn{height:48px;font-size:14.5px;}
 }
+
+/* ===== Orders (desktop): nama hampers WAJIB 1 baris, kolom melebar mengikuti isi ===== */
+@media (min-width:769px){
+  .orders-table-wrap .data-table td.hn{white-space:nowrap;font-size:12.5px;}
+  .orders-table-wrap .data-table th,.orders-table-wrap .data-table td{padding-left:10px;padding-right:10px;}
+}

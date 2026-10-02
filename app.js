@@ -86,7 +86,7 @@ var USER_PAGE = { no: 1, size: 25 };
 var TTL = 90000; // cache dianggap segar selama 90 detik
 var CACHE = { dashboard: 0, orders: 0, lookup: 0, users: 0 };
 var ADMIN_PAGES = ['users', 'stores', 'areas'];
-var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap Hamper', gallery: 'Galeri Bukti', users: 'Users', stores: 'Stores', areas: 'Areas' };
+var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap per Hampers', gallery: 'Galeri Bukti', users: 'Users', stores: 'Stores', areas: 'Area' };
 
 /* ============== ICONS (Lucide, 2D flat) ============== */
 var ICONS = {
@@ -778,7 +778,7 @@ function navigateTo(page) {
   else if (page === 'users') loadUsers(false);
   else {
     if (STATE.lookup) renderAdminLists();
-    else { $('storesTableBody').innerHTML = SKEL_ROWS(2); $('areasTableBody').innerHTML = SKEL_ROWS(2); }
+    else { $('storesTableBody').innerHTML = lookupSkel_('stores', 5); $('areasTableBody').innerHTML = lookupSkel_('areas', 5); }
     if (!fresh('lookup')) loadLookup(false);
   }
 }
@@ -1733,6 +1733,19 @@ function submitRevert() {
 function renderDashboard_safe() { if (STATE.stats) renderDashboard(); }
 
 /* ============== USERS ============== */
+function lookupSkel_(kind, n) {
+  var cols = kind === 'stores'
+    ? [['Store ID', 52, 14], ['Nama Store', 70, 16], ['Area', 44, 14], ['Status', 44, 22, '999px']]
+    : [['Area ID', 52, 14], ['Nama Area', 66, 16], ['Status', 44, 22, '999px']];
+  var s = '';
+  for (var i = 0; i < n; i++) {
+    s += '<tr class="sk-row">' + cols.map(function (c) {
+      var w = Math.max(30, c[1] - (i % 3) * 8);
+      return '<td data-label="' + c[0] + '"><span class="sk" style="height:' + c[2] + 'px;width:' + w + '%;' + (c[3] ? 'border-radius:' + c[3] + ';' : '') + '"></span></td>';
+    }).join('') + '<td data-label="Aksi"><span class="sk-acts"><i class="sk"></i><i class="sk"></i></span></td></tr>';
+  }
+  return s;
+}
 function usersSkel_(n) {
   var w = [62, 78, 54, 70, 66], s = '';
   var b = function (lbl, wd, h, r) { return '<td data-label="' + lbl + '"><span class="sk" style="height:' + (h || 14) + 'px;width:' + wd + '%;' + (r ? 'border-radius:' + r + ';' : '') + '"></span></td>'; };

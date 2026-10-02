@@ -2,8 +2,8 @@
  * Panggilan ke Apps Script (POST / domain google) TIDAK pernah disentuh,
  * jadi data selalu real-time dan kecepatan API tidak berubah.
  * Naikkan VERSION jika ingin memaksa semua perangkat memuat ulang cache. */
-var VERSION = 'po-v6';
-var SHELL = ['./', 'index.html', 'style.css?v=36', 'config.js?v=26', 'app.js?v=36', 'manifest.json',
+var VERSION = 'po-v10';
+var SHELL = ['./', 'index.html', 'style.css?v=36', 'config.js?v=26', 'app.js?v=40', 'manifest.json',
              'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -41,6 +41,10 @@ self.addEventListener('fetch', function (e) {
     return fetch(req).then(function (res) {
       if (res && (res.ok || res.type === 'opaque')) { var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put(req, copy); }); }
       return res;
+    }).catch(function () {
+      // Jaringan gagal: jangan lempar error. Rute aplikasi (/dashboard, /orders, ...) -> index.html; lainnya -> cache atau error biasa
+      var isRoute = sameOrigin && !/\.[a-z0-9]+$/i.test(url.pathname);
+      return (isRoute ? caches.match('index.html') : caches.match(req)).then(function (r) { return r || Response.error(); });
     });
   }));
 });

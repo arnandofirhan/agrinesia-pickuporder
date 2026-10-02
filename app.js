@@ -549,6 +549,7 @@ function bindEvents() {
     else if (act === 'aa-toggle') { var it = el.closest('.aa-item'); var o = it.classList.toggle('show-idle'); el.textContent = o ? 'Sembunyikan store tanpa order' : 'Tampilkan ' + it.querySelectorAll('.aa-idle .aa-chip').length + ' store tanpa order'; }
     else if (act === 'jump-area-close') { closeModal('modalActiveAreas'); goOrders({ area: v }); }
     else if (act === 'goto-orders') goOrders({ status: v, deliveryType: el.getAttribute('data-dt') || '' });
+    else if (act === 'recap-go') { var rg = {}; try { rg = JSON.parse(v); } catch (e) {} goOrders(rg); }
     else if (act === 'jump-store') goOrders({ store: v });
     else if (act === 'jump-area') goOrders({ area: v });
     else if (act === 'complete') { var co = findOrder(v); if (co) askComplete(co); }
@@ -842,6 +843,8 @@ function goOrders(f) {
   setSel('filterArea', f.area || '');
   setSel('filterStore', f.store || '');
   setSel('filterDeliveryType', f.deliveryType || '');
+  $('searchInput').value = f.search || '';
+  try { $('searchInput').dispatchEvent(new Event('input')); } catch (e) {}
   STATE.pageNo = 1;
   navigateTo('orders');
 }
@@ -1039,8 +1042,12 @@ function renderDashboard() {
   var ringSvg = '<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="kgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0a7d57"/></linearGradient></defs>' +
     '<circle class="kr-track" cx="50" cy="50" r="42"/><circle class="kr-prog" cx="50" cy="50" r="42" style="stroke-dashoffset:' + (264 * (1 - Math.min(100, completionRate) / 100)).toFixed(1) + '"/></svg>' +
     '<span class="kr-num">' + String(Math.round(completionRate * 10) / 10).replace('.', ',') + '<small>%</small></span>';
-  var chipsHtml = '<span class="kc kc-pick"><i></i>Pickup <b>' + (Number(s.completedPickup) || 0) + '</b></span><span class="kc kc-del"><i></i>Delivery <b>' + (Number(s.completedDelivery) || 0) + '</b></span><span class="kc kc-wait"><i></i>Belum <b>' + remain + '</b></span>';
-  var cards = [
+  var topOf = function (m) { var bk = '', bv = 0; Object.keys(m || {}).forEach(function (k) { if (k !== 'Unknown' && Number(m[k]) > bv) { bk = k; bv = Number(m[k]); } }); return { k: bk, v: bv }; };
+  var topA = topOf(s.byArea), topS = topOf(s.byStore), qpo = totalOrd ? (Number(s.totalQty) || 0) / totalOrd : 0;
+  var chipsHtml = (topA.k ? '<span class="kc kc-top" data-act="jump-area" data-v="' + esc(topA.k) + '" title="Lihat order area ' + esc(topA.k) + '"><i></i>Area teratas <b>' + esc(topA.k) + ' (' + topA.v + ')</b></span>' : '') +
+    (topS.k ? '<span class="kc kc-top kc-del" data-act="jump-store" data-v="' + esc(topS.k) + '" title="Lihat order store ' + esc(topS.k) + '"><i></i>Store teratas <b>' + esc(topS.k) + ' (' + topS.v + ')</b></span>' : '') +
+    '<span class="kc kc-wait"><i></i>Rata-rata <b>' + (Math.round(qpo * 10) / 10).toLocaleString('id-ID') + ' pcs/order</b></span>';
+    var cards = [
     { l: 'Total Order', v: s.totalOrder, c: 'kpi-green', i: 'file', sub: 'Seluruh pickup order', st: '', dt: '' },
     { l: 'Ready for Pickup', v: s.readyForPickup, c: 'kpi-orange', i: 'clock', sub: 'Menunggu diambil', st: 'READY_FOR_PICKUP', dt: '' },
     { l: 'Ready for Delivery', v: s.readyForDelivery, c: 'kpi-purple', i: 'clock', sub: 'Menunggu dikirim', st: 'READY_FOR_DELIVERY', dt: '' },
@@ -1211,7 +1218,7 @@ function resetFilters(silent) {
 function filteredOrders() {
   var f = getFilters();
   return (STATE.orders || []).filter(function (o) {
-    if (f.status && o.pickupStatus !== f.status) return false;
+    if (f.status === 'READY') { if (!isReadyStatus(o.pickupStatus)) return false; } else if (f.status && o.pickupStatus !== f.status) return false;
     if (f.area && (f.area === '__NONE__' ? !!o.area : o.area !== f.area)) return false;
     if (f.store && (f.store === '__NONE__' ? !!o.outletName : o.outletName !== f.store)) return false;
     if (f.deliveryType && o.deliveryType !== f.deliveryType) return false;
@@ -1219,7 +1226,8 @@ function filteredOrders() {
     if (f.search) {
       return String(o.orderReference).toLowerCase().indexOf(f.search) !== -1 ||
         String(o.customer).toLowerCase().indexOf(f.search) !== -1 ||
-        String(o.phone).toLowerCase().indexOf(f.search) !== -1;
+        String(o.phone).toLowerCase().indexOf(f.search) !== -1 ||
+        String(o.hamperName || '').toLowerCase().indexOf(f.search) !== -1;
     }
     return true;
   });
@@ -1644,15 +1652,19 @@ function renderRecap() {
   }
   var tile = function (v, l) { return '<div class="rc-tile"><b>' + Number(v).toLocaleString('id-ID') + '</b><span>' + l + '</span></div>'; };
   $('recapSummary').innerHTML = tile(d.all.total, 'Total pcs') + tile(d.all.list.length, 'Jenis hamper') + tile(d.orders, 'Order') + tile(d.byArea ? d.groups.length : d.storeCount, d.byArea ? 'Area' : 'Store');
+  var baseF = { status: d.ready ? 'READY' : '', deliveryType: $('recapType').value };
+  function go(extra) { return esc(JSON.stringify(Object.assign({}, baseF, extra))); }
   function card(g, cls) {
-    var jump = '';
-    if (!g.isAll) { jump = ' data-act="' + (d.byArea ? 'jump-area' : 'jump-store') + '" data-v="' + esc(g.key || '__NONE__') + '" title="Lihat order ' + esc(g.name) + '" tabindex="0" role="button"'; }
+    var gf = {};
+    if (!g.isAll) { if (d.byArea) gf.area = g.key || '__NONE__'; else gf.store = g.key || '__NONE__'; }
+    var head = ' data-act="recap-go" data-v="' + go(gf) + '" title="Lihat ' + g.orders + ' order di menu Orders" tabindex="0" role="button"';
     var sub = (d.byArea && !g.isAll) ? Object.keys(g.stores).length + ' store &middot; ' : '';
-    return '<div class="rc-card ' + (cls || '') + '"><div class="rc-head' + (g.isAll ? '' : ' clickable') + '"' + jump + '>' +
+    return '<div class="rc-card ' + (cls || '') + '"><div class="rc-head clickable"' + head + '>' +
       '<div class="rc-gname">' + ic(g.isAll ? 'layers' : (d.byArea ? 'map' : 'store'), 'sm') + '<span>' + esc(g.name) + '</span></div>' +
-      '<div class="rc-gmeta"><b>' + g.total.toLocaleString('id-ID') + ' pcs</b><span>' + sub + g.orders + ' order</span></div></div>' +
+      '<div class="rc-gmeta"><b>' + g.total.toLocaleString('id-ID') + ' pcs</b><span>' + sub + g.orders + ' order</span></div>' + ic('chevRight', 'sm') + '</div>' +
       '<div class="rc-body">' + g.list.map(function (h) {
-        return '<div class="rc-row"><span class="rc-hn">' + esc(h.name) + '</span><span class="rc-ord">' + h.orders + ' order</span><b class="rc-qty">' + h.qty.toLocaleString('id-ID') + '<small>pcs</small></b></div>';
+        var hf = Object.assign({}, gf, { search: h.name === '(Tanpa nama hamper)' ? '' : h.name });
+        return '<div class="rc-row clickable" data-act="recap-go" data-v="' + go(hf) + '" tabindex="0" role="button" title="Lihat order hamper ini"><span class="rc-hn">' + esc(h.name) + '</span><span class="rc-ord">' + h.orders + ' order</span><b class="rc-qty">' + h.qty.toLocaleString('id-ID') + '<small>pcs</small></b></div>';
       }).join('') + '</div></div>';
   }
   box.innerHTML = (d.groups.length > 1 ? card(d.all, 'rc-total') : '') + d.groups.map(function (g) { return card(g); }).join('');

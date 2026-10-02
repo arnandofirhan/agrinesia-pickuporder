@@ -421,6 +421,13 @@ function bindEvents() {
     if ($(resetId)) $(resetId).addEventListener('click', function () { setTimeout(refreshDot, 50); });
     refreshDot();
   }
+  (function () {
+    var dw = $('filterDateWrap'), di = $('filterDate'); if (!dw || !di) return;
+    function sync() { dw.classList.toggle('empty', !di.value); }
+    di.addEventListener('change', sync); di.addEventListener('input', sync);
+    if ($('resetFilterBtn')) $('resetFilterBtn').addEventListener('click', function () { setTimeout(sync, 60); });
+    sync();
+  })();
   initFilterToggle('orders', ['searchInput', 'filterStatus', 'filterStore', 'filterArea', 'filterDeliveryType', 'filterDate'], 'resetFilterBtn');
   initFilterToggle('users', ['userSearchInput', 'userFilterRole', 'userFilterStatus'], 'userResetFilterBtn');
   initFilterToggle('stores', ['storeSearchInput', 'storeFilterArea', 'storeFilterStatus'], 'storeResetFilterBtn');

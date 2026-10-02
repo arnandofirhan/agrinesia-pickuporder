@@ -1733,8 +1733,18 @@ function submitRevert() {
 function renderDashboard_safe() { if (STATE.stats) renderDashboard(); }
 
 /* ============== USERS ============== */
+function usersSkel_(n) {
+  var w = [62, 78, 54, 70, 66], s = '';
+  var b = function (lbl, wd, h, r) { return '<td data-label="' + lbl + '"><span class="sk" style="height:' + (h || 14) + 'px;width:' + wd + '%;' + (r ? 'border-radius:' + r + ';' : '') + '"></span></td>'; };
+  for (var i = 0; i < n; i++) {
+    var k = w[i % w.length];
+    s += '<tr class="sk-row">' + b('Nama', k, 16) + b('Username', 80 - (i % 3) * 8, 14) + b('Role', 46, 22, '999px') + b('Store', 58 + (i % 2) * 14, 14) + b('Area', 40, 14) + b('Status', 44, 22, '999px') +
+      '<td data-label="Aksi"><span class="sk-acts"><i class="sk"></i><i class="sk"></i><i class="sk"></i></span></td></tr>';
+  }
+  return s;
+}
 function loadUsers(force) {
-  if (STATE.users) renderUsers(); else $('usersTableBody').innerHTML = SKEL_ROWS(3).replace(/colspan="10"/g, 'colspan="7"');
+  if (STATE.users) renderUsers(); else $('usersTableBody').innerHTML = usersSkel_(5);
   if (!STATE.lookup || !fresh('lookup')) loadLookup(false);
   if (!force && STATE.users && fresh('users')) return;
   var fail = function (msg) {

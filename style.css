@@ -2214,3 +2214,18 @@ body.dark .rc-top .search-wrap .icon,body.dark .rc-top .search-wrap svg{color:#7
   .rc-filter .rc-seg{grid-column:1/-1;}
   .rc-panel{display:contents;}
 }
+
+/* Filter tanggal informatif */
+.date-wrap{position:relative;display:block;margin:0;min-width:150px;flex:1 1 150px;cursor:pointer;}
+.date-wrap input[type=date]{width:100%;box-sizing:border-box;height:46px;padding:0 12px 0 40px;border:1.5px solid var(--border);border-radius:12px;font:inherit;font-size:14px;background:#fff;color:var(--text);}
+.date-wrap .dw-ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;z-index:2;}
+.date-wrap .dw-ph{position:absolute;left:40px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none;z-index:2;display:none;}
+.date-wrap.empty .dw-ph{display:block;}
+.date-wrap.empty input[type=date]{color:transparent;}
+.date-wrap.empty input[type=date]::-webkit-datetime-edit{color:transparent;}
+body.dark .date-wrap input[type=date]{background:#12201a;border-color:#2a4337;color:#e8f3ed;color-scheme:dark;}
+body.dark .date-wrap.empty input[type=date]{color:transparent;}
+@media (max-width:900px){
+  .fc .filter-grid>.date-wrap{display:none;}
+  .fc.filters-open .filter-grid>.date-wrap{display:block;grid-column:span 2;}
+}

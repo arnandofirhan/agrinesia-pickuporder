@@ -2378,3 +2378,12 @@ body.dark .gl-lb-act{border-top-color:#223a2f;}
 .gl-lb-info .gl-row>div{flex-direction:column;}
 .gl-lb-info .gl-ri{font-size:inherit;color:#0b6b43;}
 body.dark .gl-lb-info .gl-ri{color:#6ee7b7;}
+
+/* tombol tutup galeri: hover merah seperti modal lain */
+.gl-lb-x{cursor:pointer;transition:background .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease !important;}
+.gl-lb-x:hover,.gl-lb-x:focus-visible{background:linear-gradient(135deg,#ff6b6b,#e5393f) !important;color:#fff !important;box-shadow:0 6px 16px -4px rgba(229,57,63,.6);outline:none;transform:rotate(90deg);}
+.gl-lb-x:active{transform:rotate(90deg) scale(.92);}
+.gl-copy{margin-top:8px;display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:12px;border:1px solid rgba(110,231,183,.4);background:rgba(255,255,255,.1);color:#fff;font:700 13px/1 inherit;font-family:inherit;cursor:pointer;transition:.18s;}
+.gl-copy:hover{background:linear-gradient(135deg,#0a8a5c,#22c18a);border-color:transparent;}
+.gl-copy.done{background:#16a34a;border-color:transparent;}
+.toast-container{z-index:100000 !important;}

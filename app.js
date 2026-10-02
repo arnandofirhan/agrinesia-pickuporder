@@ -1021,7 +1021,22 @@ function renderDashboard() {
   $('areaSummary').innerHTML = rankList(s.byArea, 'area');
   $('storeSummary').innerHTML = rankList(s.byStore, 'store');
   ensureDashTabs_(Object.keys(s.byArea || {}).length, Object.keys(s.byStore || {}).length);
+  fitKpiValues_();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitKpiValues_);
 }
+/* Angka KPI otomatis mengecil agar muat di kartunya (kartu tidak dilebarkan) */
+function fitKpiValues_() {
+  var els = document.querySelectorAll('#statGrid .kpi-value');
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    el.style.removeProperty('font-size');
+    if (!el.clientWidth) continue;
+    var size = parseFloat(getComputedStyle(el).fontSize), guard = 0;
+    while (el.scrollWidth > el.clientWidth + 0.5 && size > 11 && guard++ < 30) { size -= 0.5; el.style.setProperty('font-size', size + 'px', 'important'); }
+  }
+}
+window.addEventListener('resize', function () { fitKpiValues_(); });
+
 
 /* ---- Notification read-state (persist per browser, per user) ---- */
 function notifStoreKey_() { return 'pom_notif_read_' + (STATE.user ? STATE.user.username : ''); }

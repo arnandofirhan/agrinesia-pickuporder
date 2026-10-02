@@ -11,7 +11,7 @@
 
   // Hanya fungsi BACA yang boleh diulang otomatis (aman, tidak menggandakan data).
   // Fungsi tulis (create/update/delete/login) tidak pernah diulang.
-  var SAFE_RETRY = /^(get|validate|ping)/;
+  var SAFE_RETRY = /^(get|validate|ping|login)/;   // login aman diulang (hanya membuat sesi), jadi 404 sesaat dari Google tidak menggagalkan login
 
   // Antrean: Apps Script sering membalas 404/lambat bila dibanjiri request paralel -> maks 3 sekaligus,
   // request tulis (login/update/dll) didahulukan. Request BACA identik yang sedang berjalan digabung jadi satu.
@@ -70,7 +70,7 @@
                 if (e && e.name === 'AbortError') { var te = new Error('Server terlalu lama merespons (timeout)'); te.transient = true; throw te; }
                 throw e;
               });
-    }, !isRead).then(function (j) {
+    }, !isRead || fn === 'login').then(function (j) {
       // Server melempar exception (setara failure handler pada google.script.run)
       if (j && j.__gas_error) throw new Error(j.message || 'Server error');
       return j;

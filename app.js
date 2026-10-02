@@ -1297,7 +1297,7 @@ function renderOrders(keepScroll) {
       '<td><div class="cell-main">' + esc(o.customer) + '</div><div class="cell-sub">' + esc(o.phone) + '</div></td>' +
       '<td>' + esc(o.outletName) + '</td>' +
       '<td>' + esc(o.area) + '</td>' +
-      '<td>' + esc(o.hamperName) + '</td>' +
+      '<td class="hn" title="' + esc(o.hamperName) + '">' + esc(o.hamperName) + '</td>' +
       '<td class="nw"><span class="qty-pill">' + esc(o.qty) + '</span></td>' +
       '<td class="nw">' + typeChip(o.deliveryType) + '</td>' +
       '<td class="nw">' + (fmtDate(o.deliveryDate) ? esc(fmtDate(o.deliveryDate)) : '<span class="muted-dash">-</span>') + '</td>' +

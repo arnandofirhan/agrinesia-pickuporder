@@ -816,6 +816,8 @@ function doLogout() {
   closeAllModals();
   sessDel('pom_token'); sessDel('pom_user'); sessDel('pom_page');
   resetToLogin();
+  STATE.urlReady = false;
+  try { history.replaceState(null, '', '/'); } catch (e) {}   // URL kembali ke root saat logout
   try { google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).logout(token); } catch (e) {}
 }
 

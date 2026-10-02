@@ -1418,7 +1418,7 @@ function proofThumb_(url, sz) {
 }
 function askComplete(o) {
   var delivery = isDeliveryOrder(o);
-  PROOF = { ref: o.orderReference, delivery: delivery, mode: delivery ? 'resi' : 'photo', photo: '', busy: false };
+  PROOF = { o: o, ref: o.orderReference, delivery: delivery, mode: delivery ? 'resi' : 'photo', photo: '', busy: false };
   $('proofTitle').textContent = delivery ? 'Bukti Penerimaan' : 'Bukti Pengambilan';
   $('proofSub').textContent = delivery ? 'Isi nomor resi atau lampirkan foto pesanan' : 'Lampirkan foto pesanan yang diambil customer';
   $('proofOrder').innerHTML = '<div class="pf-oref">' + ic(delivery ? 'truck' : 'package', 'sm') + '<b>' + esc(o.orderReference) + '</b>' + typeChip(o.deliveryType) + '</div>' +
@@ -1567,29 +1567,85 @@ function recapDot_() {
   var d = $('recapDot'); d.textContent = n; d.classList.toggle('hidden', n === 0);
 }
 /* Kamera langsung (getUserMedia); fallback ke input capture bila tidak diizinkan */
-var CAM = { stream: null, facing: 'environment' };
+var CAM = { stream: null, facing: 'environment', blob: null, torch: false };
+var CAM_STAMP = true; // cetak kode order + waktu di foto sebagai tanda bukti (set false untuk mematikan)
+function camPad_(n) { return (n < 10 ? '0' : '') + n; }
+function camNow_() {
+  var d = new Date(), M = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear() + ' \u00b7 ' + camPad_(d.getHours()) + ':' + camPad_(d.getMinutes()) + ':' + camPad_(d.getSeconds());
+}
+function camHint_(txt, ready) { $('camHintTx').textContent = txt; $('camHint').classList.toggle('ready', !!ready); }
 function openCamera_() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('proofCam').click(); return; }
+  var o = (PROOF && PROOF.o) || {};
+  $('camRef').textContent = o.orderReference || PROOF.ref || '-';
+  $('camMeta').textContent = [o.customer, o.hamperName, o.qty ? o.qty + ' pcs' : ''].filter(Boolean).join(' \u00b7 ') || 'Bukti serah terima';
+  var t = $('camType'); t.textContent = PROOF.delivery ? 'Delivery' : 'Pickup'; t.classList.toggle('dl', !!PROOF.delivery);
+  $('camReview').classList.add('hidden'); CAM.blob = null;
+  $('camShot').disabled = true; camHint_('Memuat kamera...', false);
   $('camOv').classList.remove('hidden');
   startCamera_();
 }
-function stopCamStream_() { if (CAM.stream) { CAM.stream.getTracks().forEach(function (t) { t.stop(); }); CAM.stream = null; } }
+function stopCamStream_() { if (CAM.stream) { CAM.stream.getTracks().forEach(function (t) { t.stop(); }); CAM.stream = null; } CAM.torch = false; }
 function startCamera_() {
   stopCamStream_();
+  $('camShot').disabled = true; camHint_('Memuat kamera...', false);
+  $('camTorch').classList.add('hidden'); $('camTorch').setAttribute('aria-pressed', 'false');
   navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: CAM.facing }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false })
-    .then(function (s) { CAM.stream = s; var v = $('camVideo'); v.srcObject = s; var p = v.play(); if (p && p.catch) p.catch(function () {}); })
+    .then(function (s) {
+      CAM.stream = s; var v = $('camVideo'); v.srcObject = s;
+      v.classList.toggle('mirror', CAM.facing === 'user');
+      var p = v.play(); if (p && p.catch) p.catch(function () {});
+      try {
+        var tr = s.getVideoTracks()[0], cp = tr.getCapabilities ? tr.getCapabilities() : {};
+        if (cp.focusMode && cp.focusMode.indexOf('continuous') > -1) tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {});
+        if (cp.torch) $('camTorch').classList.remove('hidden');
+      } catch (e) {}
+      var ready = function () { $('camShot').disabled = false; camHint_('Posisikan pesanan di dalam bingkai', true); };
+      if (v.readyState >= 2) setTimeout(ready, 350); else v.onloadeddata = function () { setTimeout(ready, 350); };
+    })
     .catch(function () { closeCamera_(); $('proofCam').click(); });
 }
-function closeCamera_() { stopCamStream_(); $('camVideo').srcObject = null; $('camOv').classList.add('hidden'); }
+function closeCamera_() { stopCamStream_(); $('camVideo').srcObject = null; camRetake_(); $('camOv').classList.add('hidden'); }
+function camStamp_(ctx, w, h) {
+  var o = (PROOF && PROOF.o) || {}, fs = Math.max(14, Math.round(w * 0.022)), pad = Math.round(fs * 0.8), bh = Math.round(fs * 2.35 + pad * 2);
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, h - bh, w, bh);
+  ctx.fillStyle = '#fff'; ctx.textBaseline = 'top';
+  ctx.font = '700 ' + fs + 'px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.fillText((o.orderReference || PROOF.ref || '') + (o.customer ? '  \u00b7  ' + o.customer : ''), pad, h - bh + pad);
+  ctx.font = '500 ' + Math.round(fs * 0.9) + 'px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.fillText(camNow_() + (PROOF.delivery ? '  \u00b7  Delivery' : '  \u00b7  Pickup'), pad, h - bh + pad + fs * 1.4);
+}
 function snapCamera_() {
-  var v = $('camVideo'); if (!v.videoWidth) return;
+  var v = $('camVideo'); if (!v.videoWidth || $('camShot').disabled) return;
+  var fl = $('camFlash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+  if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) {} }
   var c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext('2d').drawImage(v, 0, 0);
+  var ctx = c.getContext('2d'); ctx.drawImage(v, 0, 0);
+  if (CAM_STAMP) camStamp_(ctx, c.width, c.height);
   c.toBlob(function (b) {
-    closeCamera_(); if (!b) return;
-    var f; try { f = new File([b], 'bukti.jpg', { type: 'image/jpeg' }); } catch (e) { f = b; f.name = 'bukti.jpg'; }
-    handleProofFile_(f);
+    if (!b) return;
+    CAM.blob = b;
+    $('camRevImg').src = URL.createObjectURL(b);
+    $('camReview').classList.remove('hidden');
   }, 'image/jpeg', 0.92);
+}
+function camUse_() {
+  var b = CAM.blob; if (!b) return;
+  closeCamera_();
+  var f; try { f = new File([b], 'bukti.jpg', { type: 'image/jpeg' }); } catch (e) { f = b; f.name = 'bukti.jpg'; }
+  handleProofFile_(f);
+}
+function camRetake_() {
+  var i = $('camRevImg'); if (i.src && i.src.indexOf('blob:') === 0) URL.revokeObjectURL(i.src);
+  i.removeAttribute('src'); CAM.blob = null; $('camReview').classList.add('hidden');
+}
+function camTorch_() {
+  if (!CAM.stream) return;
+  CAM.torch = !CAM.torch;
+  try { CAM.stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: CAM.torch }] }).catch(function () { CAM.torch = false; }); } catch (e) { CAM.torch = false; }
+  $('camTorch').setAttribute('aria-pressed', CAM.torch ? 'true' : 'false');
 }
 function bindProofRecap_() {
   $('proofResi').addEventListener('input', syncProofBtn_);
@@ -1610,6 +1666,11 @@ function bindProofRecap_() {
   $('camClose').addEventListener('click', closeCamera_);
   $('camFlip').addEventListener('click', function () { CAM.facing = CAM.facing === 'environment' ? 'user' : 'environment'; startCamera_(); });
   $('camShot').addEventListener('click', snapCamera_);
+  $('camUse').addEventListener('click', camUse_);
+  $('camRetake').addEventListener('click', camRetake_);
+  $('camTorch').addEventListener('click', camTorch_);
+  $('camGridBtn').addEventListener('click', function () { var on = $('camFrame').classList.toggle('grid-on'); this.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('camOv').classList.contains('hidden')) closeCamera_(); });
 }
 function recapCompute_() {
   var st = $('recapStatus').value, tp = $('recapType').value, q = $('recapSearch').value.trim().toLowerCase();

@@ -2465,24 +2465,24 @@ function exportOrdersExcel() {
     .then(function () { btn.disabled = false; btn.classList.remove('is-busy'); });
 }
 /* ============== GALERI BUKTI SERAH TERIMA ============== */
-var GL = { list: [], shown: 24, idx: -1, built: false };
+var GL = { list: [], shown: 30, idx: -1, built: false };
 function glId_(u) { var m = String(u || '').match(/\/d\/([\w-]+)/) || String(u || '').match(/[?&]id=([\w-]+)/); return m ? m[1] : ''; }
 function glThumb_(it, w) { return 'https://drive.google.com/thumbnail?id=' + it.fid + '&sz=w' + w; }
 function glRef_(o) { return '#' + String(o.orderReference || '').replace(/^#+/, ''); }
 function glDateKey_(o) { return String(o.deliveryDate || '').replace(/\//g, '-'); }
 function bindGallery_() {
   if (!$('glSearch')) return;
-  $('glSearch').addEventListener('input', debounce(function () { GL.shown = 24; renderGallery(); }, 150));
-  ['glStore', 'glArea', 'glType', 'glDate'].forEach(function (id) { $(id).addEventListener('change', function () { GL.shown = 24; renderGallery(); }); });
+  $('glSearch').addEventListener('input', debounce(function () { GL.shown = 30; renderGallery(); }, 150));
+  ['glStore', 'glArea', 'glType', 'glDate'].forEach(function (id) { $(id).addEventListener('change', function () { GL.shown = 30; renderGallery(); }); });
   $('glDate').addEventListener('input', function () { $('glDateWrap').classList.toggle('empty', !this.value); });
   $('glToggleBtn').addEventListener('click', function () {
     var o = $('glFilterCard').classList.toggle('filters-open'); this.setAttribute('aria-expanded', o ? 'true' : 'false');
   });
   $('glReset').addEventListener('click', function () {
     $('glSearch').value = ''; ['glStore', 'glArea', 'glType', 'glDate'].forEach(function (id) { $(id).value = ''; });
-    $('glDateWrap').classList.add('empty'); GL.shown = 24; renderGallery();
+    $('glDateWrap').classList.add('empty'); GL.shown = 30; renderGallery();
   });
-  $('glMoreBtn').addEventListener('click', function () { GL.shown += 24; renderGallery(); });
+  $('glMoreBtn').addEventListener('click', function () { GL.shown += 30; renderGallery(); });
   $('glGrid').addEventListener('click', function (e) {
     var c = e.target.closest('[data-gi]'); if (c) glOpen_(+c.getAttribute('data-gi'));
   });
@@ -2520,7 +2520,7 @@ function glFillSelects_() {
 }
 function renderGallery() {
   var box = $('glGrid'); if (!box) return;
-  if (!STATE.orders) { box.innerHTML = '<div class="sk" style="height:170px;border-radius:18px"></div><div class="sk" style="height:170px;border-radius:18px"></div>'; return; }
+  if (!STATE.orders) { box.innerHTML = '<div class="sk" style="height:76px;border-radius:16px"></div><div class="sk" style="height:76px;border-radius:16px"></div><div class="sk" style="height:76px;border-radius:16px"></div>'; return; }
   glFillSelects_();
   var q = $('glSearch').value.trim().toLowerCase(), st = $('glStore').value, ar = $('glArea').value, tp = $('glType').value, dt = $('glDate').value;
   var n = 0; [q, st, ar, tp, dt].forEach(function (v) { if (v) n++; });
@@ -2539,13 +2539,21 @@ function renderGallery() {
   GL.list = list;
   $('glCount').textContent = list.length.toLocaleString('id-ID') + ' bukti';
   if (!list.length) { box.innerHTML = '<div class="card gl-empty">' + (n ? emptyBlock('search', 'Bukti tidak ditemukan', 'Tidak ada bukti yang cocok. Coba ubah kata kunci, tanggal, atau filter store / area.') : emptyBlock('file', 'Belum ada bukti serah terima', 'Foto atau resi akan muncul di sini setelah order diselesaikan.')) + '</div>'; $('glMoreBox').classList.add('hidden'); return; }
-  box.innerHTML = list.slice(0, GL.shown).map(function (it, i) {
+  var head = '<div class="gl-head" aria-hidden="true"><span></span><span>Order</span><span>Hampers</span><span>Store</span><span>Tanggal</span><span>Tipe</span><span></span></div>';
+  box.innerHTML = head + list.slice(0, GL.shown).map(function (it, i) {
     var o = it.o, del = isDeliveryOrder(o), badge = '<span class="gl-badge ' + (del ? 'del' : 'pick') + '">' + (del ? 'Delivery' : 'Pickup') + '</span>';
     var media = it.fid
-      ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + glThumb_(it, 480) + '" alt="Bukti ' + esc(o.orderReference) + '" onerror="this.parentNode.classList.add(\'fail\');this.remove()">'
-      : '<div class="gl-resi">' + ic('truck') + '<small>No. Resi</small><b>' + esc(o.proofValue) + '</b></div>';
-    return '<div class="gl-card" data-gi="' + i + '" tabindex="0" role="button" title="Lihat bukti ' + esc(o.orderReference) + '"><div class="gl-media">' + media + '<div class="gl-fb">' + ic('image') + '<small>Pratinjau tidak tersedia</small></div>' + badge + '</div>' +
-      '<div class="gl-meta"><b>' + esc(glRef_(o)) + '</b><span class="gl-h">' + esc(o.hamperName || '-') + '</span><span class="gl-s">' + esc(o.outletName || '-') + ' &middot; ' + esc(glDateKey_(o) || '-') + '</span></div></div>';
+      ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + glThumb_(it, 200) + '" alt="Bukti ' + esc(o.orderReference) + '" onerror="this.parentNode.classList.add(\'fail\');this.remove()">'
+      : '<div class="gl-resi">' + ic('truck') + '</div>';
+    var sub = it.fid ? esc(o.customer || '-') : 'Resi ' + esc(o.proofValue);
+    return '<div class="gl-card" data-gi="' + i + '" tabindex="0" role="button" title="Lihat bukti ' + esc(o.orderReference) + '">' +
+      '<div class="gl-media">' + media + '<div class="gl-fb">' + ic('image') + '</div></div>' +
+      '<div class="gc gc-ref"><b>' + esc(glRef_(o)) + '</b><small>' + sub + '</small></div>' +
+      '<div class="gc gc-h">' + esc(o.hamperName || '-') + '</div>' +
+      '<div class="gc gc-st">' + esc(o.outletName || '-') + '</div>' +
+      '<div class="gc gc-dt">' + esc(fmtDate(glDateKey_(o)) || '-') + '</div>' +
+      '<div class="gc gc-tp">' + badge + '</div>' +
+      '<span class="gl-chev">' + ic('chevRight', 'sm') + '</span></div>';
   }).join('');
   $('glMoreBox').classList.toggle('hidden', list.length <= GL.shown);
   if (list.length > GL.shown) $('glMoreBtn').textContent = 'Muat lebih banyak (' + (list.length - GL.shown) + ' lagi)';

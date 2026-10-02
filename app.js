@@ -765,7 +765,7 @@ function navigateTo(page) {
   document.querySelectorAll('.page').forEach(function (p) { p.classList.add('hidden'); });
   $('page-' + page).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.toggle('active', n.getAttribute('data-page') === page); });
-  var moreBtn = $('bnMoreBtn'); if (moreBtn) moreBtn.classList.toggle('active', page === 'stores' || page === 'areas' || page === 'gallery');
+  var moreBtn = $('bnMoreBtn'); if (moreBtn) moreBtn.classList.toggle('active', page === 'users' || page === 'stores' || page === 'areas');
   toggleMoreSheet_(false); closeUserMenu_();
   $('headerTitle').textContent = TITLES[page];
   document.body.classList.remove('drawer-open');

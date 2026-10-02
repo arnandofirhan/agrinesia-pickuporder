@@ -2574,3 +2574,14 @@ body.dark .sched-card{background:#12201a;border-color:#223a2f;border-left-color:
 body.dark .sc-over{--scbg:rgba(220,38,38,.2);--sc:#f87171;}body.dark .sc-today{--scbg:rgba(217,119,6,.2);--sc:#fbbf24;}body.dark .sc-late{--scbg:rgba(148,163,184,.18);--sc:#cbd5e1;}
 body.dark .sb-over{background:rgba(220,38,38,.22);color:#fca5a5;}body.dark .sb-today{background:rgba(217,119,6,.22);color:#fcd34d;}body.dark .sb-late{background:rgba(148,163,184,.2);color:#cbd5e1;}body.dark .sb-ok{background:rgba(34,197,94,.2);color:#86efac;}
 body.dark .od-sched{background:#12201a;border-color:#223a2f;}
+
+/* Rekap: tombol Export = gaya persis Export di Orders (.btn-export); rapi di HP */
+#page-recap .rc-actions{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+#page-recap .rc-actions .btn-export{height:30px;white-space:nowrap;}
+@media (max-width:768px){
+  #page-recap .page-head{flex-wrap:wrap;gap:10px;}
+  #page-recap .page-head>div:first-child{flex:1 1 100%;}
+  #page-recap .rc-actions{flex:1 1 100%;gap:8px;}
+  #page-recap .rc-actions .btn-export{flex:1;justify-content:center;height:38px;font-size:13px;}
+  #page-recap .rc-actions .btn-export svg{width:16px;height:16px;}
+}

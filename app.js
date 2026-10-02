@@ -970,10 +970,22 @@ function rkMore_(b) {
   var w = b.parentNode, on = w.classList.toggle('expanded');
   b.textContent = on ? 'Ringkas' : 'Lihat semua (' + b.getAttribute('data-n') + ')';
 }
+function ensureDashTabs_(na, ns) {
+  var g = $('dashSplit') || document.querySelector('#page-dashboard .grid-2'); if (!g) return;
+  g.id = 'dashSplit';
+  var cards = g.children;
+  for (var i = 0; i < cards.length && i < 2; i++) {
+    var old = cards[i].querySelector('.dash-tabs'); if (old) old.parentNode.removeChild(old);
+    var d = document.createElement('div'); d.className = 'dash-tabs';
+    d.innerHTML = '<button type="button" data-t="area" onclick="dashTab_(\'area\')">Per Area <i>' + na + '</i></button><button type="button" data-t="store" onclick="dashTab_(\'store\')">Per Store <i>' + ns + '</i></button>';
+    cards[i].insertBefore(d, cards[i].firstChild);
+  }
+  dashTab_(g.classList.contains('show-store') ? 'store' : 'area');
+}
 function dashTab_(t) {
   var g = $('dashSplit'); if (!g) return;
   g.classList.toggle('show-store', t === 'store');
-  var bs = document.querySelectorAll('#dashTabs button');
+  var bs = g.querySelectorAll('.dash-tabs button');
   for (var i = 0; i < bs.length; i++) bs[i].classList.toggle('on', bs[i].getAttribute('data-t') === t);
 }
 
@@ -985,6 +997,11 @@ function renderDashboard() {
   var activeAreas = Object.keys(s.byArea || {}).filter(function (k) { return k !== 'Unknown' && Number(s.byArea[k]) > 0; }).length;
   var doneOrders = (Number(s.completedPickup) || 0) + (Number(s.completedDelivery) || 0);
   var completionRate = totalOrd ? Math.round(doneOrders / totalOrd * 1000) / 10 : 0;
+  var remain = Math.max(0, totalOrd - doneOrders);
+  var ringSvg = '<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="kgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0a7d57"/></linearGradient></defs>' +
+    '<circle class="kr-track" cx="50" cy="50" r="42"/><circle class="kr-prog" cx="50" cy="50" r="42" style="stroke-dashoffset:' + (264 * (1 - Math.min(100, completionRate) / 100)).toFixed(1) + '"/></svg>' +
+    '<span class="kr-num">' + String(Math.round(completionRate * 10) / 10).replace('.', ',') + '<small>%</small></span>';
+  var chipsHtml = '<span class="kc kc-pick"><i></i>Pickup <b>' + (Number(s.completedPickup) || 0) + '</b></span><span class="kc kc-del"><i></i>Delivery <b>' + (Number(s.completedDelivery) || 0) + '</b></span><span class="kc kc-wait"><i></i>Belum <b>' + remain + '</b></span>';
   var cards = [
     { l: 'Total Order', v: s.totalOrder, c: 'kpi-green', i: 'file', sub: 'Seluruh pickup order', st: '', dt: '' },
     { l: 'Ready for Pickup', v: s.readyForPickup, c: 'kpi-orange', i: 'clock', sub: 'Menunggu diambil', st: 'READY_FOR_PICKUP', dt: '' },
@@ -998,14 +1015,12 @@ function renderDashboard() {
     { l: 'Completion Rate', v: completionRate, c: 'kpi-green kpi-span', i: 'check', sub: doneOrders.toLocaleString('id-ID') + ' dari ' + Number(s.totalOrder || 0).toLocaleString('id-ID') + ' order selesai (pickup + delivery)', st: '', dt: '', pct: true }
   ];
   $('statGrid').innerHTML = cards.map(function (c) {
-    return '<div class="kpi clickable ' + c.c + '" tabindex="0" role="button" title="Lihat order: ' + c.l + '" data-act="' + (c.act || 'goto-orders') + '" data-v="' + c.st + '" data-dt="' + c.dt + '"' + (c.pct ? ' style="--p:' + (Number(c.v) || 0) + '"' : '') + '><div class="kpi-icon">' + ic(c.i) + '</div><div class="kpi-label">' + c.l + '</div><div class="kpi-value">' + (c.money ? fmtCurrency(c.v) : c.pct ? String(c.v).replace('.', ',') + '%' : Number(c.v).toLocaleString('id-ID')) + '</div><div class="kpi-sub">' + c.sub + '</div>' + (c.pct ? '<div class="kpi-bar"><i style="width:' + Math.min(100, c.v) + '%"></i></div>' : '') + '<span class="kpi-go">' + ic('chevRight', 'sm') + '</span></div>';
+    return '<div class="kpi clickable ' + c.c + '" tabindex="0" role="button" title="Lihat order: ' + c.l + '" data-act="' + (c.act || 'goto-orders') + '" data-v="' + c.st + '" data-dt="' + c.dt + '"' + (c.pct ? ' style="--p:' + (Number(c.v) || 0) + '"' : '') + '><div class="kpi-icon">' + ic(c.i) + '</div><div class="kpi-label">' + c.l + '</div><div class="kpi-value">' + (c.money ? fmtCurrency(c.v) : c.pct ? String(c.v).replace('.', ',') + '%' : Number(c.v).toLocaleString('id-ID')) + '</div><div class="kpi-sub">' + c.sub + '</div>' + (c.pct ? '<div class="kpi-bar"><i style="width:' + Math.min(100, c.v) + '%"></i></div>' : '') + (c.pct ? '<div class="kpi-ring">' + ringSvg + '</div><div class="kpi-chips">' + chipsHtml + '</div>' : '') + '<span class="kpi-go">' + ic('chevRight', 'sm') + '</span></div>';
   }).join('');
 
-  var dtA = $('dtArea'), dtS = $('dtStore');
-  if (dtA) dtA.textContent = Object.keys(s.byArea || {}).length;
-  if (dtS) dtS.textContent = Object.keys(s.byStore || {}).length;
   $('areaSummary').innerHTML = rankList(s.byArea, 'area');
   $('storeSummary').innerHTML = rankList(s.byStore, 'store');
+  ensureDashTabs_(Object.keys(s.byArea || {}).length, Object.keys(s.byStore || {}).length);
 }
 
 /* ---- Notification read-state (persist per browser, per user) ---- */

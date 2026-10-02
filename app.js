@@ -1296,7 +1296,7 @@ function renderOrders(keepScroll) {
     return '<div class="order-card oc-compact">' +
       '<div class="order-card-top"><span class="mono">' + esc(o.orderReference) + '</span>' + statusBadge(o.pickupStatus) + '</div>' +
       '<div class="oc-title"><h4>' + esc(o.customer) + '</h4><div class="oc-actions">' + viewBtn + completeBtn(o, true) + revertBtn(o, true) + '</div></div>' +
-      '<div class="oc-grid">' + cell('Store', o.outletName, true) + cell('Hamper', o.hamperName, true) +
+      '<div class="oc-grid">' + cell('Store', o.outletName, true) + cell('Hampers', o.hamperName, true) +
       cell('Tipe', o.deliveryType) + cell('Qty', o.qty) + cell('Tgl Kirim', fmtDate(o.deliveryDate)) + '</div>' +
       '</div>';
   }).join('');
@@ -1359,7 +1359,7 @@ function renderOrderDetail(o) {
       '<div class="od-box"><div class="od-box-title">' + ic('store', 'sm') + ' Lokasi</div>' +
         dsub('Store', o.outletName) + dsub('Area', o.area) + '</div>' +
       '<div class="od-box od-full"><div class="od-box-title">' + ic('package', 'sm') + ' Pesanan</div>' +
-        dsub('Hamper', o.hamperName) + '<div class="od-two">' + dsub('Tipe', o.deliveryType) + dsub('Order Number', o.orderReference) + '</div></div>' +
+        dsub('Hampers', o.hamperName) + '<div class="od-two">' + dsub('Tipe', o.deliveryType) + dsub('Order Number', o.orderReference) + '</div></div>' +
       proofBoxHtml_(o) +
       '<div class="od-box od-full od-log"><div class="od-box-title">' + ic('clock', 'sm') + ' Riwayat Update</div>' +
         '<div id="odTimeline" class="od-tl"><div class="od-tl-empty">Memuat riwayat...</div></div></div>' +
@@ -1626,7 +1626,7 @@ function recapCompute_() {
     var h = g.hampers[hn] || (g.hampers[hn] = { name: hn, qty: 0, orders: 0 }); h.qty += qty; h.orders++;
   }
   rows.forEach(function (o) {
-    var qty = Number(o.qty) || 0, hn = String(o.hamperName || '').trim() || '(Tanpa nama hamper)';
+    var qty = Number(o.qty) || 0, hn = String(o.hamperName || '').trim() || '(Tanpa nama hampers)';
     var key = byArea ? (o.area || '') : (o.outletName || '');
     var g = groups[key] || (groups[key] = { name: key || (byArea ? 'Tanpa Area' : 'Tanpa Store'), key: key, total: 0, orders: 0, hampers: {}, stores: {} });
     add(g, qty, hn); add(all, qty, hn);
@@ -1665,8 +1665,8 @@ function renderRecap() {
       '<div class="rc-gname">' + ic(g.isAll ? 'layers' : (d.byArea ? 'map' : 'store'), 'sm') + '<span>' + esc(g.name) + '</span></div>' +
       '<div class="rc-gmeta"><b>' + g.total.toLocaleString('id-ID') + ' pcs</b><span>' + sub + g.orders + ' order</span></div>' + ic('chevRight', 'sm') + '</div>' +
       '<div class="rc-body">' + g.list.map(function (h) {
-        var hf = Object.assign({}, gf, { search: h.name === '(Tanpa nama hamper)' ? '' : h.name });
-        return '<div class="rc-row clickable" data-act="recap-go" data-v="' + go(hf) + '" tabindex="0" role="button" title="Lihat order hamper ini"><span class="rc-hn">' + esc(h.name) + '</span><span class="rc-ord">' + h.orders + ' order</span><b class="rc-qty">' + h.qty.toLocaleString('id-ID') + '<small>pcs</small></b></div>';
+        var hf = Object.assign({}, gf, { search: h.name === '(Tanpa nama hampers)' ? '' : h.name });
+        return '<div class="rc-row clickable" data-act="recap-go" data-v="' + go(hf) + '" tabindex="0" role="button" title="Lihat order hampers ini"><span class="rc-hn">' + esc(h.name) + '</span><span class="rc-ord">' + h.orders + ' order</span><b class="rc-qty">' + h.qty.toLocaleString('id-ID') + '<small>pcs</small></b></div>';
       }).join('') + '</div></div>';
   }
   box.innerHTML = (d.groups.length > 1 ? card(d.all, 'rc-total') : '') + d.groups.map(function (g) { return card(g); }).join('');
@@ -1674,7 +1674,7 @@ function renderRecap() {
 function copyRecap_() {
   var d = RECAP.data; if (!d || !d.orders) { showToast('Tidak ada data untuk disalin.', 'warning'); return; }
   var p = function (x) { return ('0' + x).slice(-2); }, n = new Date();
-  var out = ['*REKAP HAMPER - ' + (d.byArea ? 'PER AREA' : 'PER STORE') + (d.ready ? ' (PERLU DISIAPKAN)' : '') + '*',
+  var out = ['*REKAP HAMPERS - ' + (d.byArea ? 'PER AREA' : 'PER STORE') + (d.ready ? ' (PERLU DISIAPKAN)' : '') + '*',
     p(n.getDate()) + '-' + p(n.getMonth() + 1) + '-' + n.getFullYear() + ' ' + p(n.getHours()) + ':' + p(n.getMinutes()), ''];
   d.groups.forEach(function (g) {
     out.push('*' + g.name + '* (' + g.total + ' pcs)');
@@ -2261,7 +2261,7 @@ function exportOrdersExcel() {
   var cols = [
     { h: 'No', w: 6, a: 'center' }, { h: 'Order Number', w: 17, a: 'left' }, { h: 'Customer', w: 22, a: 'left' },
     { h: 'Phone', w: 16, a: 'left' }, { h: 'Store', w: 26, a: 'left' }, { h: 'Area', w: 15, a: 'left' },
-    { h: 'Hamper', w: 36, a: 'left' }, { h: 'Tipe', w: 11, a: 'center' }, { h: 'Qty', w: 8, a: 'center' },
+    { h: 'Hampers', w: 36, a: 'left' }, { h: 'Tipe', w: 11, a: 'center' }, { h: 'Qty', w: 8, a: 'center' },
     { h: 'Revenue (Rp)', w: 16, a: 'right' }, { h: 'Tgl Kirim', w: 13, a: 'center' }, { h: 'Status', w: 20, a: 'center' },
     { h: 'Diupdate Oleh', w: 17, a: 'left' }, { h: 'Diupdate Pada', w: 19, a: 'center' }, { h: 'Bukti Serah Terima', w: 36, a: 'left' }
   ];

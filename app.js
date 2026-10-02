@@ -549,7 +549,7 @@ function bindEvents() {
     else if (act === 'revert-chip') { $('revertReason').value = v; syncRevertBtn(); $('revertReason').focus(); }
     else if (act === 'revert-submit') submitRevert();
     else if (act === 'proof-mode') setProofMode_(v);
-    else if (act === 'proof-cam') $('proofCam').click();
+    else if (act === 'proof-cam') openCamera_();
     else if (act === 'proof-gal') $('proofGal').click();
     else if (act === 'proof-clear') { $('proofCam').value = ''; $('proofGal').value = ''; setProofPhoto_(''); }
     else if (act === 'proof-submit') submitProof_();
@@ -1545,13 +1545,54 @@ function completeOrder(ref, proof) {
 
 /* ============== REKAP PER HAMPER (daftar yang harus disiapkan) ============== */
 var RECAP = { group: 'store', data: null };
+function recapDot_() {
+  var n = 0; if ($('recapSearch').value.trim()) n++; if ($('recapStatus').value !== 'ready') n++; if ($('recapType').value) n++;
+  var d = $('recapDot'); d.textContent = n; d.classList.toggle('hidden', n === 0);
+}
+/* Kamera langsung (getUserMedia); fallback ke input capture bila tidak diizinkan */
+var CAM = { stream: null, facing: 'environment' };
+function openCamera_() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('proofCam').click(); return; }
+  $('camOv').classList.remove('hidden');
+  startCamera_();
+}
+function stopCamStream_() { if (CAM.stream) { CAM.stream.getTracks().forEach(function (t) { t.stop(); }); CAM.stream = null; } }
+function startCamera_() {
+  stopCamStream_();
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: CAM.facing }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false })
+    .then(function (s) { CAM.stream = s; var v = $('camVideo'); v.srcObject = s; var p = v.play(); if (p && p.catch) p.catch(function () {}); })
+    .catch(function () { closeCamera_(); $('proofCam').click(); });
+}
+function closeCamera_() { stopCamStream_(); $('camVideo').srcObject = null; $('camOv').classList.add('hidden'); }
+function snapCamera_() {
+  var v = $('camVideo'); if (!v.videoWidth) return;
+  var c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  c.toBlob(function (b) {
+    closeCamera_(); if (!b) return;
+    var f; try { f = new File([b], 'bukti.jpg', { type: 'image/jpeg' }); } catch (e) { f = b; f.name = 'bukti.jpg'; }
+    handleProofFile_(f);
+  }, 'image/jpeg', 0.92);
+}
 function bindProofRecap_() {
   $('proofResi').addEventListener('input', syncProofBtn_);
   $('proofResi').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !$('proofSubmitBtn').disabled) submitProof_(); });
   $('proofCam').addEventListener('change', function () { handleProofFile_(this.files && this.files[0]); });
   $('proofGal').addEventListener('change', function () { handleProofFile_(this.files && this.files[0]); });
   $('recapSearch').addEventListener('input', debounce(renderRecap, 150));
-  ['recapStatus', 'recapType'].forEach(function (id) { $(id).addEventListener('change', renderRecap); });
+  ['recapStatus', 'recapType'].forEach(function (id) { $(id).addEventListener('change', function () { renderRecap(); recapDot_(); }); });
+  $('recapSearch').addEventListener('input', recapDot_);
+  $('recapToggleBtn').addEventListener('click', function () {
+    var open = $('recapFilterCard').classList.toggle('filters-open');
+    this.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  $('recapResetBtn').addEventListener('click', function () {
+    $('recapSearch').value = ''; $('recapStatus').value = 'ready'; $('recapType').value = '';
+    recapDot_(); renderRecap();
+  });
+  $('camClose').addEventListener('click', closeCamera_);
+  $('camFlip').addEventListener('click', function () { CAM.facing = CAM.facing === 'environment' ? 'user' : 'environment'; startCamera_(); });
+  $('camShot').addEventListener('click', snapCamera_);
 }
 function recapCompute_() {
   var st = $('recapStatus').value, tp = $('recapType').value, q = $('recapSearch').value.trim().toLowerCase();

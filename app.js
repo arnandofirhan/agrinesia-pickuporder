@@ -86,7 +86,7 @@ var USER_PAGE = { no: 1, size: 25 };
 var TTL = 90000; // cache dianggap segar selama 90 detik
 var CACHE = { dashboard: 0, orders: 0, lookup: 0, users: 0 };
 var ADMIN_PAGES = ['users', 'stores', 'areas'];
-var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap Hamper', users: 'Users', stores: 'Stores', areas: 'Areas' };
+var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap Hamper', gallery: 'Galeri Bukti', users: 'Users', stores: 'Stores', areas: 'Areas' };
 
 /* ============== ICONS (Lucide, 2D flat) ============== */
 var ICONS = {
@@ -478,6 +478,7 @@ function bindEvents() {
   });
   $('resetFilterBtn').addEventListener('click', resetFilters);
   bindProofRecap_();
+  bindGallery_();
   $('exportOrdersBtn').addEventListener('click', exportOrdersExcel);
   $('orderPageSize').addEventListener('change', function () { PAGE_SIZE = +this.value || 25; STATE.pageNo = 1; renderOrders(); });
   $('orderPages').addEventListener('click', function (e) {
@@ -764,7 +765,7 @@ function navigateTo(page) {
   document.querySelectorAll('.page').forEach(function (p) { p.classList.add('hidden'); });
   $('page-' + page).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.toggle('active', n.getAttribute('data-page') === page); });
-  var moreBtn = $('bnMoreBtn'); if (moreBtn) moreBtn.classList.toggle('active', page === 'stores' || page === 'areas');
+  var moreBtn = $('bnMoreBtn'); if (moreBtn) moreBtn.classList.toggle('active', page === 'stores' || page === 'areas' || page === 'gallery');
   toggleMoreSheet_(false); closeUserMenu_();
   $('headerTitle').textContent = TITLES[page];
   document.body.classList.remove('drawer-open');
@@ -773,6 +774,7 @@ function navigateTo(page) {
   if (page === 'dashboard') loadDashboard(false);
   else if (page === 'orders') { renderOrders(); if (!fresh('orders')) loadOrders(false); }
   else if (page === 'recap') { renderRecap(); if (!fresh('orders')) loadOrders(false); }
+  else if (page === 'gallery') { renderGallery(); if (!fresh('orders')) loadOrders(false); }
   else if (page === 'users') loadUsers(false);
   else {
     if (STATE.lookup) renderAdminLists();
@@ -1195,7 +1197,7 @@ function loadOrders(force) {
   api('getOrders', [STATE.token, {}], function (res) {
     if (!res.success) { fail(res.message); return; }
     STATE.orders = res.data || []; CACHE.orders = Date.now();
-    renderOrders(); updateBell(); if (STATE.page === 'recap') renderRecap();
+    renderOrders(); updateBell(); if (STATE.page === 'recap') renderRecap(); if (STATE.page === 'gallery') renderGallery();
   }, function () { fail('Gagal memuat order. Periksa koneksi Anda.'); });
 }
 
@@ -2317,3 +2319,96 @@ function exportOrdersExcel() {
   }).catch(function () { showToast('Gagal membuat file Excel', 'error'); })
     .then(function () { btn.disabled = false; btn.classList.remove('is-busy'); });
 }
+/* ============== GALERI BUKTI SERAH TERIMA ============== */
+var GL = { list: [], shown: 24, idx: -1, built: false };
+function glId_(u) { var m = String(u || '').match(/\/d\/([\w-]+)/) || String(u || '').match(/[?&]id=([\w-]+)/); return m ? m[1] : ''; }
+function glThumb_(it, w) { return 'https://drive.google.com/thumbnail?id=' + it.fid + '&sz=w' + w; }
+function glDateKey_(o) { return String(o.deliveryDate || '').replace(/\//g, '-'); }
+function bindGallery_() {
+  if (!$('glSearch')) return;
+  $('glSearch').addEventListener('input', debounce(function () { GL.shown = 24; renderGallery(); }, 150));
+  ['glStore', 'glArea', 'glType', 'glDate'].forEach(function (id) { $(id).addEventListener('change', function () { GL.shown = 24; renderGallery(); }); });
+  $('glDate').addEventListener('input', function () { $('glDateWrap').classList.toggle('empty', !this.value); });
+  $('glToggleBtn').addEventListener('click', function () {
+    var o = $('glFilterCard').classList.toggle('filters-open'); this.setAttribute('aria-expanded', o ? 'true' : 'false');
+  });
+  $('glReset').addEventListener('click', function () {
+    $('glSearch').value = ''; ['glStore', 'glArea', 'glType', 'glDate'].forEach(function (id) { $(id).value = ''; });
+    $('glDateWrap').classList.add('empty'); GL.shown = 24; renderGallery();
+  });
+  $('glMoreBtn').addEventListener('click', function () { GL.shown += 24; renderGallery(); });
+  $('glGrid').addEventListener('click', function (e) {
+    var c = e.target.closest('[data-gi]'); if (c) glOpen_(+c.getAttribute('data-gi'));
+  });
+  $('glGrid').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var c = e.target.closest('[data-gi]'); if (c) { e.preventDefault(); glOpen_(+c.getAttribute('data-gi')); }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-glclose]'), function (b) { b.addEventListener('click', glClose_); });
+  $('glPrev').addEventListener('click', function () { glStep_(-1); });
+  $('glNext').addEventListener('click', function () { glStep_(1); });
+  $('glLbOrder').addEventListener('click', function () {
+    var it = GL.list[GL.idx]; if (!it) return; glClose_(); goOrders({ search: it.o.orderReference });
+  });
+  $('glLbImg').addEventListener('error', function () { this.classList.add('hidden'); $('glLbFail').classList.remove('hidden'); });
+  document.addEventListener('keydown', function (e) {
+    if ($('glLb').classList.contains('hidden')) return;
+    if (e.key === 'Escape') glClose_(); else if (e.key === 'ArrowLeft') glStep_(-1); else if (e.key === 'ArrowRight') glStep_(1);
+  });
+}
+function glFillSelects_() {
+  var rows = STATE.orders || [], fill = function (id, key, label) {
+    var el = $(id), cur = el.value, vals = {};
+    rows.forEach(function (o) { if (o.proofType && o[key]) vals[o[key]] = 1; });
+    var ks = Object.keys(vals).sort(function (a, b) { return a.localeCompare(b, 'id', { numeric: true }); });
+    el.innerHTML = '<option value="">' + label + '</option>' + ks.map(function (k) { return '<option value="' + esc(k) + '">' + esc(k) + '</option>'; }).join('');
+    el.value = ks.indexOf(cur) !== -1 ? cur : '';
+  };
+  fill('glStore', 'outletName', 'Semua Store'); fill('glArea', 'area', 'Semua Area');
+}
+function renderGallery() {
+  var box = $('glGrid'); if (!box) return;
+  if (!STATE.orders) { box.innerHTML = '<div class="sk" style="height:170px;border-radius:18px"></div><div class="sk" style="height:170px;border-radius:18px"></div>'; return; }
+  glFillSelects_();
+  var q = $('glSearch').value.trim().toLowerCase(), st = $('glStore').value, ar = $('glArea').value, tp = $('glType').value, dt = $('glDate').value;
+  var n = 0; [q, st, ar, tp, dt].forEach(function (v) { if (v) n++; });
+  var dot = $('glDot'); dot.textContent = n; dot.classList.toggle('hidden', n === 0);
+  var list = (STATE.orders || []).filter(function (o) {
+    if (!o.proofType || !o.proofValue) return false;
+    if (o.proofType === 'PHOTO' && !glId_(o.proofValue)) return false;
+    if (tp && o.proofType !== tp) return false;
+    if (st && o.outletName !== st) return false;
+    if (ar && o.area !== ar) return false;
+    if (dt && glDateKey_(o).indexOf(dt) === -1) return false;
+    if (q && [o.orderReference, o.customer, o.hamperName, o.outletName, o.phone, o.proofType === 'RESI' ? o.proofValue : ''].join(' ').toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  }).map(function (o) { return { o: o, fid: o.proofType === 'PHOTO' ? glId_(o.proofValue) : '' }; });
+  list.sort(function (a, b) { return String(b.o.updatedAt || b.o.deliveryDate).localeCompare(String(a.o.updatedAt || a.o.deliveryDate)); });
+  GL.list = list;
+  $('glCount').textContent = list.length.toLocaleString('id-ID') + ' bukti';
+  if (!list.length) { box.innerHTML = '<div class="card gl-empty"><div class="empty-state">' + ic('image') + '<p>' + (n ? 'Tidak ada bukti yang cocok dengan filter.' : 'Belum ada bukti serah terima.') + '</p></div></div>'; $('glMoreBox').classList.add('hidden'); return; }
+  box.innerHTML = list.slice(0, GL.shown).map(function (it, i) {
+    var o = it.o, del = isDeliveryOrder(o), badge = '<span class="gl-badge ' + (del ? 'del' : 'pick') + '">' + (del ? 'Delivery' : 'Pickup') + '</span>';
+    var media = it.fid
+      ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + glThumb_(it, 480) + '" alt="Bukti ' + esc(o.orderReference) + '" onerror="this.parentNode.classList.add(\'fail\');this.remove()">'
+      : '<div class="gl-resi">' + ic('truck') + '<small>No. Resi</small><b>' + esc(o.proofValue) + '</b></div>';
+    return '<div class="gl-card" data-gi="' + i + '" tabindex="0" role="button" title="Lihat bukti ' + esc(o.orderReference) + '"><div class="gl-media">' + media + '<div class="gl-fb">' + ic('image') + '<small>Pratinjau tidak tersedia</small></div>' + badge + '</div>' +
+      '<div class="gl-meta"><b>#' + esc(o.orderReference) + '</b><span class="gl-h">' + esc(o.hamperName || '-') + '</span><span class="gl-s">' + esc(o.outletName || '-') + ' &middot; ' + esc(glDateKey_(o) || '-') + '</span></div></div>';
+  }).join('');
+  $('glMoreBox').classList.toggle('hidden', list.length <= GL.shown);
+  if (list.length > GL.shown) $('glMoreBtn').textContent = 'Muat lebih banyak (' + (list.length - GL.shown) + ' lagi)';
+}
+function glOpen_(i) {
+  var it = GL.list[i]; if (!it) return; GL.idx = i;
+  var o = it.o, row = function (l, v) { return '<div><span>' + l + '</span><b>' + esc(v || '-') + '</b></div>'; };
+  var img = $('glLbImg'), fail = $('glLbFail');
+  fail.classList.add('hidden');
+  if (it.fid) { img.classList.remove('hidden'); img.src = glThumb_(it, 1600); $('glLbDrive').classList.remove('hidden'); $('glLbDrive').href = o.proofValue; }
+  else { img.classList.add('hidden'); img.removeAttribute('src'); fail.textContent = 'Resi: ' + o.proofValue; fail.classList.remove('hidden'); $('glLbDrive').classList.add('hidden'); }
+  $('glLbInfo').innerHTML = row('Order', '#' + o.orderReference) + row('Customer', o.customer) + row('Hamper', o.hamperName + (o.qty ? ' (' + o.qty + ' pcs)' : '')) + row('Store', o.outletName) + row('Tanggal', glDateKey_(o)) + row('Diselesaikan oleh', o.updatedBy);
+  $('glPrev').classList.toggle('hidden', i <= 0);
+  $('glNext').classList.toggle('hidden', i >= Math.min(GL.list.length, GL.shown) - 1);
+  $('glLb').classList.remove('hidden'); document.body.classList.add('gl-lock');
+}
+function glStep_(d) { var n = GL.idx + d; if (n >= 0 && n < Math.min(GL.list.length, GL.shown)) glOpen_(n); }
+function glClose_() { $('glLb').classList.add('hidden'); $('glLbImg').removeAttribute('src'); document.body.classList.remove('gl-lock'); }

@@ -50,15 +50,27 @@
     if (!url || /PASTE_URL/.test(url)) {
       return Promise.reject(new Error('API_URL belum diisi di config.js'));
     }
-    return schedule(function () { return fetch(url, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ fn: fn, args: args })
-    }).then(function (r) {
-      if (!r.ok) { var he = new Error('HTTP ' + r.status); he.transient = true; throw he; }
-      return r.json();
-    }); }, !SAFE_RETRY.test(fn)).then(function (j) {
+    var isRead = SAFE_RETRY.test(fn);
+    return schedule(function () {
+      // TIMEOUT: request yang menggantung tidak boleh menahan loading/antrean selamanya
+      var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var to = setTimeout(function () { if (ctl) ctl.abort(); }, isRead ? 25000 : 60000);
+      return fetch(url, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ fn: fn, args: args }),
+        signal: ctl ? ctl.signal : undefined
+      }).then(function (r) {
+        if (!r.ok) { var he = new Error('HTTP ' + r.status); he.transient = true; throw he; }
+        return r.json();
+      }).then(function (v) { clearTimeout(to); return v; },
+              function (e) {
+                clearTimeout(to);
+                if (e && e.name === 'AbortError') { var te = new Error('Server terlalu lama merespons (timeout)'); te.transient = true; throw te; }
+                throw e;
+              });
+    }, !isRead).then(function (j) {
       // Server melempar exception (setara failure handler pada google.script.run)
       if (j && j.__gas_error) throw new Error(j.message || 'Server error');
       return j;
@@ -1060,13 +1072,18 @@ function rankList(obj, kind) {
   var keys = Object.keys(obj).sort(function (a, b) { return obj[b] - obj[a]; });
   if (!keys.length) return emptyBlock('info', 'Belum ada data', '', 'sm');
   var max = obj[keys[0]] || 1;
-  var html = '<div class="rank-wrap"><div class="rank-list' + (kind === 'area' ? ' single' : '') + '">' + keys.map(function (k, i) {
+  var html = '<div class="rank-wrap"><div class="rank-list single">' + keys.map(function (k, i) {
     var v = k === 'Unknown' ? '__NONE__' : k;
     return '<div class="rank-item clickable' + (i >= 5 ? ' rk-extra' : '') + '" tabindex="0" role="button" title="Lihat order ' + esc(k) + '" data-act="jump-' + kind + '" data-v="' + esc(v) + '"><div class="rank-top"><span>' + esc(k) + '</span><b>' + obj[k] + '</b></div>' +
       '<div class="bar"><i style="width:' + Math.max(4, Math.round(obj[k] / max * 100)) + '%"></i></div></div>';
   }).join('') + '</div>';
   if (keys.length > 5) html += '<button type="button" class="rk-more" onclick="rkMore_(this)" data-n="' + keys.length + '">Lihat semua (' + keys.length + ')</button>';
   return html + '</div>';
+}
+function hideSplitForStore_() {
+  var g = $('dashSplit'); if (!g) return;
+  var role = STATE.user && (STATE.user.role === 'STORE_USER' ? 'STORE' : STATE.user.role);
+  g.style.display = role === 'STORE' ? 'none' : '';   // user Store hanya melihat store-nya sendiri: ringkasan ini redundan
 }
 function rkMore_(b) {
   var w = b.parentNode, on = w.classList.toggle('expanded');
@@ -1127,6 +1144,7 @@ function renderDashboard() {
   $('areaSummary').innerHTML = rankList(s.byArea, 'area');
   $('storeSummary').innerHTML = rankList(s.byStore, 'store');
   ensureDashTabs_(Object.keys(s.byArea || {}).length, Object.keys(s.byStore || {}).length);
+  hideSplitForStore_();
   fitKpiValues_();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitKpiValues_);
 }

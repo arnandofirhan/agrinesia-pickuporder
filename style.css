@@ -2498,3 +2498,7 @@ body.dark .app-shell .es.err.span-all,body.dark .app-shell .state-row .es.err{bo
   .orders-table-wrap .data-table td.hn{white-space:nowrap;font-size:12.5px;}
   .orders-table-wrap .data-table th,.orders-table-wrap .data-table td{padding-left:10px;padding-right:10px;}
 }
+
+/* Riwayat update: catatan "Bukti: Foto/Resi" pada order selesai = hijau (oranye hanya untuk pembatalan) */
+.od-tl-item.is-ok .od-tl-note{color:#0b6b48;background:#e4f6ec;border:1px solid #c7e8d6;font-weight:600;}
+body.dark .od-tl-item.is-ok .od-tl-note{color:#7ff0c3;background:#143026;border-color:#24503f;}

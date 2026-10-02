@@ -2387,3 +2387,11 @@ body.dark .gl-lb-info .gl-ri{color:#6ee7b7;}
 .gl-copy:hover{background:linear-gradient(135deg,#0a8a5c,#22c18a);border-color:transparent;}
 .gl-copy.done{background:#16a34a;border-color:transparent;}
 .toast-container{z-index:100000 !important;}
+
+/* skeleton users */
+.sk-row .sk{max-width:100%;}
+.sk-acts{display:inline-flex;gap:8px;}
+.sk-acts .sk{width:34px;height:34px;border-radius:11px;display:block;}
+@media (max-width:900px){
+  .sk-row{pointer-events:none;}
+}

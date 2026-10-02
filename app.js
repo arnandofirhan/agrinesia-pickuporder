@@ -949,9 +949,24 @@ function openActiveAreas_() {
 
 function renderDashboardSkeleton() {
   renderScope_();
-  $('statGrid').innerHTML = '<div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div>';
-  var rows = '<span class="sk" style="height:14px;margin:14px 0"></span><span class="sk" style="height:14px;margin:14px 0"></span><span class="sk" style="height:14px;margin:14px 0"></span>';
-  $('areaSummary').innerHTML = rows; $('storeSummary').innerHTML = rows;
+  /* skeleton meniru kartu asli: jumlah, urutan, kelas, dan susunan yang sama */
+  var cls = ['kpi-green', 'kpi-orange', 'kpi-purple', 'kpi-blue', 'kpi-teal', 'kpi-slate', 'kpi-gold kpi-wide', 'kpi-orange', 'kpi-teal', 'kpi-green kpi-span'];
+  $('statGrid').innerHTML = cls.map(function (c, i) {
+    var hero = i === 9;
+    return '<div class="kpi is-sk ' + c + '"><div class="kpi-icon"></div>' +
+      '<div class="kpi-label"><span class="skl" style="height:9px;width:78%"></span></div>' +
+      '<div class="kpi-value"><span class="skl" style="height:20px;width:52%;margin-top:6px"></span></div>' +
+      '<div class="kpi-sub"><span class="skl" style="height:9px;width:90%"></span></div>' +
+      (hero ? '<div class="kpi-ring"><span class="skl skl-ring"></span></div><div class="kpi-chips"><span class="skl skl-chip"></span><span class="skl skl-chip"></span><span class="skl skl-chip"></span></div>' : '') +
+      '</div>';
+  }).join('');
+  function skRank(kind) {
+    var rows = '';
+    for (var n = 0; n < 5; n++) rows += '<div class="rank-item"><div class="rank-top"><span class="sk" style="width:' + (80 + (n * 17) % 50) + 'px;height:11px"></span><b class="sk" style="width:20px;height:11px"></b></div><div class="bar"><i class="sk" style="width:' + (92 - n * 16) + '%;height:100%;border-radius:0"></i></div></div>';
+    return '<div class="rank-wrap"><div class="rank-list' + (kind === 'area' ? ' single' : '') + '">' + rows + '</div></div>';
+  }
+  $('areaSummary').innerHTML = skRank('area'); $('storeSummary').innerHTML = skRank('store');
+  ensureDashTabs_('–', '–');
 }
 
 function rankList(obj, kind) {

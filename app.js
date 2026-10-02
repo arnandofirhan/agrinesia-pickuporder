@@ -1903,8 +1903,8 @@ function renderUsers() {
     return '<tr><td data-label="Nama"><span class="cell-main">' + esc(u.name) + '</span></td>' +
       '<td data-label="Username">' + esc(u.username) + '</td>' +
       '<td data-label="Role">' + roleChip(u.role) + '</td>' +
-      '<td data-label="Store" class="store-cell">' + storeCellHtml_(u.storeId) + '</td>' +
-      '<td data-label="Area">' + esc(userAreaText_(u)) + '</td>' +
+      '<td data-label="Store" class="store-cell">' + (u.role === 'ADMIN' ? 'All Store' : storeCellHtml_(u.storeId)) + '</td>' +
+      '<td data-label="Area">' + esc(u.role === 'ADMIN' ? 'All Area' : userAreaText_(u)) + '</td>' +
       '<td data-label="Status">' + activeBadge(u.status) + '</td>' +
       '<td data-label="Aksi"><div class="row-actions">' +
       iconActionBtn({ kind: 'view', act: 'edit-user', v: i, icon: 'edit', title: 'Edit' }) +

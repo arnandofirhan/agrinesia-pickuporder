@@ -2395,3 +2395,5 @@ body.dark .gl-lb-info .gl-ri{color:#6ee7b7;}
 @media (max-width:900px){
   .sk-row{pointer-events:none;}
 }
+/* label kartu order tidak boleh 2 baris */
+.oc-cell.oc-wide small{flex:0 0 60px;white-space:nowrap;}

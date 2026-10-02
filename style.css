@@ -2039,3 +2039,9 @@ body.dark .notif-popover .nf-body::-webkit-scrollbar-thumb{background:#2a4638;}
   .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-icon,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-icon{width:32px !important;height:32px !important;}
   .app-shell .kpi-grid .kpi:nth-child(8)>.kpi-label,.app-shell .kpi-grid .kpi:nth-child(9)>.kpi-label{font-size:9.5px !important;letter-spacing:.02em !important;white-space:nowrap !important;}
 }
+
+/* Urutan HP: ... Total Order/Qty > Rata-rata/Area Aktif > Total Revenue */
+@media (max-width:820px){
+  .app-shell .kpi-grid .kpi:nth-child(8),.app-shell .kpi-grid .kpi:nth-child(9){order:4;}
+  .app-shell .kpi-grid .kpi:nth-child(7){order:5;}
+}

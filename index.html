@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css?v=38">
+  <link rel="stylesheet" href="style.css?v=42">
 </head>
 <body>
 
@@ -87,7 +87,10 @@
       <a href="#" class="nav-item active" data-page="dashboard" title="Dashboard"><i data-ic="dashboard"></i><span class="nav-label">Dashboard</span></a>
       <a href="#" class="nav-item" data-page="orders" title="Orders"><i data-ic="orders"></i><span class="nav-label">Orders</span></a>
       <a href="#" class="nav-item" data-page="recap" title="Rekap Hampers"><i data-ic="clipboard"></i><span class="nav-label">Rekap Hampers</span></a>
+      <a href="#" class="nav-item" data-page="calendar" title="Kalender Pengambilan"><i data-ic="calendar"></i><span class="nav-label">Kalender Pengambilan</span></a>
+      <div class="nav-group">Bukti &amp; Riwayat</div>
       <a href="#" class="nav-item" data-page="gallery" title="Galeri Bukti"><i data-ic="image"></i><span class="nav-label">Galeri Bukti</span></a>
+      <a href="#" class="nav-item store-hide" data-page="activity" title="Riwayat Aktivitas"><i data-ic="clock"></i><span class="nav-label">Riwayat Aktivitas</span></a>
       <div class="admin-only">
         <div class="nav-group">Master Data</div>
         <a href="#" class="nav-item" data-page="users" title="Users"><i data-ic="users"></i><span class="nav-label">Users</span></a>
@@ -105,14 +108,16 @@
     <a href="#" class="nav-item active" data-page="dashboard"><i data-ic="dashboard"></i><span>Dashboard</span></a>
     <a href="#" class="nav-item" data-page="orders"><i data-ic="orders"></i><span>Orders</span></a>
     <a href="#" class="nav-item" data-page="recap"><i data-ic="clipboard"></i><span>Rekap</span></a>
-    <a href="#" class="nav-item" data-page="gallery"><i data-ic="image"></i><span>Galeri</span></a>
-    <button type="button" class="bn-more admin-only" id="bnMoreBtn" aria-haspopup="true" aria-expanded="false"><i data-ic="menu"></i><span>Lainnya</span></button>
+    <a href="#" class="nav-item" data-page="calendar"><i data-ic="calendar"></i><span>Kalender</span></a>
+    <button type="button" class="bn-more" id="bnMoreBtn" aria-haspopup="true" aria-expanded="false"><i data-ic="menu"></i><span>Lainnya</span></button>
   </nav>
   <div class="more-sheet-backdrop" id="moreSheetBackdrop"></div>
   <div class="more-sheet" id="moreSheet" role="dialog" aria-label="Menu lainnya">
     <div class="more-grip"></div>
     <div class="more-title">Menu Lainnya</div>
     <div class="more-grid">
+      <a href="#" class="nav-item more-item" data-page="gallery"><i data-ic="image"></i><span>Galeri</span><small>Bukti serah terima</small></a>
+      <a href="#" class="nav-item more-item store-hide" data-page="activity"><i data-ic="clock"></i><span>Riwayat</span><small>Aktivitas user</small></a>
       <a href="#" class="nav-item more-item admin-only" data-page="users"><i data-ic="users"></i><span>Users</span><small>Kelola akun</small></a>
       <a href="#" class="nav-item more-item admin-only" data-page="stores"><i data-ic="store"></i><span>Stores</span><small>Kelola store</small></a>
       <a href="#" class="nav-item more-item admin-only" data-page="areas"><i data-ic="map"></i><span>Area</span><small>Kelola area</small></a>
@@ -164,6 +169,13 @@
           <div class="card"><h3 class="card-title">Per Area</h3><div id="areaSummary"></div></div>
           <div class="card"><h3 class="card-title">Per Store</h3><div id="storeSummary"></div></div>
         </div>
+        <div class="card th-card" id="topHampersCard">
+          <div class="th-head">
+            <div><h3 class="card-title">Hampers Terlaris</h3><p class="th-sub" id="thSub">Paling banyak dipesan customer</p></div>
+            <div class="th-tabs" role="tablist"><button type="button" class="on" data-th="qty">Total Pcs</button><button type="button" data-th="orders">Jumlah Order</button></div>
+          </div>
+          <div id="topHampers"></div>
+        </div>
       </section>
 
       <!-- ORDERS -->
@@ -175,18 +187,22 @@
             <select id="filterStatus">
               <option value="">Semua Status</option>
               <option value="READY">Perlu Disiapkan (Ready)</option>
+              <option value="PARTIAL">Sebagian Selesai (Partial)</option>
               <option value="READY_FOR_PICKUP">Ready for Pickup</option>
               <option value="READY_FOR_DELIVERY">Ready for Delivery</option>
               <option value="COMPLETED_PICKUP">Completed Pickup</option>
               <option value="COMPLETED_DELIVERY">Completed Delivery</option>
               <option value="OVERDUE">Melewati Jadwal</option>
               <option value="DUE_TODAY">Jadwal Hari Ini</option>
+              <option value="ON_TIME">Selesai Tepat Waktu</option>
               <option value="LATE_DONE">Selesai Terlambat</option>
             </select>
-            <select id="filterStore" class="admin-only"><option value="">Semua Store</option></select>
+            <select id="filterStore"><option value="">Semua Store</option></select>
             <select id="filterArea"><option value="">Semua Area</option></select>
             <select id="filterDeliveryType"><option value="">Semua Tipe</option><option value="Delivery">Delivery</option><option value="Pickup">Pickup</option></select>
-            <label class="date-wrap empty" id="filterDateWrap"><svg class="dw-ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="dw-ph">Tanggal Permintaan</span><input type="date" id="filterDate" aria-label="Filter tanggal kirim"></label>
+            <select id="filterItems" aria-label="Jumlah item"><option value="">Semua Item</option><option value="MULTI">Lebih dari 1 item</option><option value="SINGLE">1 item saja</option></select>
+            <label class="date-wrap empty" id="filterDateWrap" title="Jadwal Diminta (tanggal yang diinginkan customer)"><svg class="dw-ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="dw-ph">Jadwal Diminta</span><input type="date" id="filterDate" aria-label="Filter jadwal diminta customer"></label>
+            <label class="date-wrap empty" id="filterActualWrap" title="Tgl Selesai (tanggal order di-Complete)"><svg class="dw-ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="dw-ph">Tgl Selesai</span><input type="date" id="filterActual" aria-label="Filter tanggal selesai"></label>
             <button class="btn btn-secondary" id="resetFilterBtn"><i data-ic="refresh" data-size="sm"></i> Reset</button>
           </div>
         </div>
@@ -194,7 +210,7 @@
           <div class="table-head"><h3 class="card-title">Daftar Pickup Order</h3><div class="th-right"><span class="count-pill" id="ordersCount">0 order</span><button type="button" class="btn-export" id="exportOrdersBtn" title="Export ke Excel" aria-label="Export ke Excel"><i data-ic="download" data-size="sm"></i><span>Export</span></button></div></div>
           <div class="table-wrapper orders-table-wrap">
             <table class="data-table">
-              <thead><tr><th>Order</th><th>Customer</th><th>Store</th><th>Area</th><th>Hampers</th><th>Qty</th><th>Tipe</th><th>Tgl Permintaan</th><th>Tgl Aktual</th><th>Status</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>Order</th><th>Progres</th><th>Customer</th><th>Store</th><th>Area</th><th>Hampers</th><th>Qty</th><th>Tipe</th><th>Jadwal Diminta</th><th>Tgl Selesai</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody id="ordersTableBody"></tbody>
             </table>
           </div>
@@ -216,19 +232,19 @@
 
       <!-- REKAP HAMPERS -->
       <section id="page-recap" class="page hidden">
-        <div class="page-head"><div><h2>Rekap per Hampers</h2><p id="recapSub">Jumlah yang harus disiapkan, dikelompokkan per store atau area</p></div>
+        <div class="page-head"><div><h2>Rekap per Hampers</h2><p id="recapSub">Jumlah yang harus disiapkan, dikelompokkan per area, lalu per store</p></div>
           <div class="rc-actions"><button type="button" class="btn-export" id="recapExportBtn" data-act="recap-export" title="Export ke Excel" aria-label="Export ke Excel"><i data-ic="download" data-size="sm"></i><span>Export</span></button><button type="button" class="btn-export" id="recapCopyBtn" data-act="recap-copy" title="Salin rekap sebagai teks (siap tempel ke WhatsApp)" aria-label="Salin rekap"><i data-ic="copy" data-size="sm"></i><span>Salin Rekap</span></button></div></div>
-        <div class="card rc-filter" id="recapFilterCard">
-          <div class="rc-seg" id="recapGroup" role="tablist">
+        <div class="card fc" id="recapFilterCard">
+          <div class="rc-seg" id="recapGroup" role="tablist" hidden style="display:none">
             <button type="button" class="on" data-act="recap-group" data-v="store"><i data-ic="store" data-size="sm"></i>Per Store</button>
             <button type="button" data-act="recap-group" data-v="area"><i data-ic="map" data-size="sm"></i>Per Area</button>
           </div>
-          <div class="rc-top">
+          <div class="filter-grid">
             <div class="search-wrap form-group" style="margin:0"><i data-ic="search"></i><input type="text" id="recapSearch" placeholder="Cari hampers / store / area"></div>
-            <button type="button" class="rc-toggle" id="recapToggleBtn" aria-expanded="false" aria-label="Tampilkan filter"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="rc-dot hidden" id="recapDot"></span></button>
-          </div>
-          <div class="rc-panel">
+            <button type="button" class="filter-toggle" id="recapToggleBtn" aria-expanded="false" aria-label="Tampilkan filter"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="ft-dot hidden" id="recapDot"></span></button>
             <select id="recapStatus"><option value="ready">Perlu Disiapkan</option><option value="all">Semua Order</option></select>
+            <select id="recapStore" aria-label="Store"><option value="">Semua Store</option></select>
+            <select id="recapArea" aria-label="Area"><option value="">Semua Area</option></select>
             <select id="recapType"><option value="">Semua Tipe</option><option value="Pickup">Pickup</option><option value="Delivery">Delivery</option></select>
             <button type="button" class="btn btn-secondary" id="recapResetBtn"><i data-ic="refresh" data-size="sm"></i> Reset</button>
           </div>
@@ -237,17 +253,41 @@
         <div id="recapList"></div>
       </section>
 
+      <!-- KALENDER PENGAMBILAN -->
+      <section id="page-calendar" class="page hidden">
+        <div class="page-head"><div><h2>Kalender Pengambilan</h2><p id="calSub">Jadwal pengambilan / pengiriman berdasarkan Jadwal Diminta customer</p></div></div>
+        <div class="card cal-card">
+          <div class="cal-bar">
+            <div class="cal-nav">
+              <button type="button" class="cal-btn" data-act="cal-prev" aria-label="Bulan sebelumnya"><i data-ic="chevLeft" data-size="sm"></i></button>
+              <select id="calMonth" aria-label="Bulan"></select>
+              <select id="calYear" aria-label="Tahun"></select>
+              <button type="button" class="cal-btn" data-act="cal-next" aria-label="Bulan berikutnya"><i data-ic="chevRight" data-size="sm"></i></button>
+            </div>
+            <div class="cal-filters">
+              <button type="button" class="cal-today" id="calTodayBtn" data-act="cal-today">Hari Ini</button>
+              <select id="calType" aria-label="Tipe"><option value="">Semua Tipe</option><option value="Pickup">Pickup</option><option value="Delivery">Delivery</option></select>
+              <select id="calStatus" aria-label="Status"><option value="">Semua Status</option><option value="open">Belum Selesai</option><option value="overdue">Melewati Jadwal</option><option value="done">Sudah Selesai</option></select>
+              <select id="calStore" aria-label="Store"><option value="">Semua Store</option></select>
+              <select id="calArea" aria-label="Area"><option value="">Semua Area</option></select>
+            </div>
+          </div>
+          <div class="cal-sum" id="calSummary"></div>
+          <div class="cal-dow"><span class="sun">Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span></div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-legend"><span><i class="cd over"></i>Melewati jadwal</span><span><i class="cd pend"></i>Menunggu diambil / dikirim</span><span><i class="cd done"></i>Sudah selesai</span><span><i class="cal-todaydot"></i>Hari ini</span><span class="sun">Minggu</span></div>
+        </div>
+      </section>
+
       <!-- GALERI BUKTI -->
       <section id="page-gallery" class="page hidden">
         <div class="page-head"><div><h2>Galeri Bukti Serah Terima</h2><p>Foto dan resi bukti pengambilan / pengiriman, siap dicek saat ada komplain</p></div>
           <span class="count-pill" id="glCount">0 bukti</span></div>
-        <div class="card gl-filter" id="glFilterCard">
-          <div class="gl-top">
+        <div class="card fc" id="glFilterCard">
+          <div class="filter-grid">
             <div class="search-wrap form-group" style="margin:0"><i data-ic="search"></i><input type="text" id="glSearch" placeholder="Cari order / customer / hampers / resi"></div>
-            <button type="button" class="gl-toggle" id="glToggleBtn" aria-expanded="false" aria-label="Tampilkan filter"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="gl-dot hidden" id="glDot"></span></button>
-          </div>
-          <div class="gl-panel">
-            <select id="glStore" class="admin-only"><option value="">Semua Store</option></select>
+            <button type="button" class="filter-toggle" id="glToggleBtn" aria-expanded="false" aria-label="Tampilkan filter"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="ft-dot hidden" id="glDot"></span></button>
+            <select id="glStore"><option value="">Semua Store</option></select>
             <select id="glArea"><option value="">Semua Area</option></select>
             <select id="glType"><option value="">Semua Bukti</option><option value="PHOTO">Foto</option><option value="RESI">Resi</option></select>
             <label class="date-wrap empty" id="glDateWrap"><svg class="dw-ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="dw-ph">Tanggal</span><input type="date" id="glDate" aria-label="Filter tanggal"></label>
@@ -256,6 +296,25 @@
         </div>
         <div id="glGrid" class="gl-grid"></div>
         <div class="gl-more hidden" id="glMoreBox"><button type="button" class="btn btn-secondary" id="glMoreBtn">Muat lebih banyak</button></div>
+      </section>
+
+      <!-- RIWAYAT AKTIVITAS -->
+      <section id="page-activity" class="page hidden">
+        <div class="page-head"><div><h2>Riwayat Aktivitas</h2><p>Jejak order yang diselesaikan dan dibatalkan oleh semua user</p></div><span class="act-pill" id="actCount"></span></div>
+        <div class="card fc" id="actFilterCard">
+          <div class="filter-grid">
+            <div class="search-wrap form-group" style="margin:0"><i data-ic="search"></i><input type="text" id="actSearch" placeholder="Cari order / customer / user / hampers / alasan"></div>
+            <button type="button" class="filter-toggle" id="actToggleBtn" aria-expanded="false" aria-label="Tampilkan filter"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="ft-dot hidden" id="actDot"></span></button>
+            <select id="actType"><option value="">Semua Aksi</option><option value="ok">Diselesaikan</option><option value="rev">Dibatalkan</option></select>
+            <select id="actUser"><option value="">Semua User</option></select>
+            <select id="actStore"><option value="">Semua Store</option></select>
+            <select id="actArea"><option value="">Semua Area</option></select>
+            <label class="date-wrap empty" id="actDateWrap"><svg class="dw-ic" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="dw-ph">Tanggal</span><input type="date" id="actDate" aria-label="Filter tanggal"></label>
+            <button type="button" class="btn btn-secondary" id="actResetBtn"><i data-ic="refresh" data-size="sm"></i> Reset</button>
+          </div>
+        </div>
+        <div id="actSummary"></div>
+        <div id="actList"></div>
       </section>
 
       <!-- USERS -->
@@ -325,6 +384,14 @@
 </div>
 
 <!-- MODAL: ORDER DETAIL -->
+<!-- MODAL: KALENDER HARIAN -->
+<div id="modalCalDay" class="modal-overlay">
+  <div class="modal modal-lg">
+    <div class="modal-header"><h3 id="calDayTitle">Jadwal</h3><button class="modal-close" data-close><i data-ic="x"></i></button></div>
+    <div class="modal-body" id="calDayBody"></div>
+  </div>
+</div>
+
 <div id="modalOrderDetail" class="modal-overlay">
   <div class="modal modal-lg">
     <div class="modal-header"><h3>Detail Pickup Order</h3><button class="modal-close" data-close><i data-ic="x"></i></button></div>
@@ -480,8 +547,7 @@
           <b>Foto pesanan</b>
           <span>Foto barang saat diserahkan sebagai bukti jika ada komplain</span>
           <div class="pf-btns">
-            <button type="button" class="btn btn-primary" data-act="proof-cam"><i data-ic="camera" data-size="sm"></i> Ambil Foto</button>
-            <button type="button" class="btn btn-secondary" data-act="proof-gal"><i data-ic="image" data-size="sm"></i> Dari Galeri</button>
+            <button type="button" class="btn btn-primary" data-act="proof-gal"><i data-ic="image" data-size="sm"></i> Dari Galeri</button>
           </div>
         </div>
         <div class="pf-prev hidden" id="proofPrev">
@@ -506,9 +572,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
-<script src="config.js?v=26"></script>
-<script src="app.js?v=41"></script>
-<script>if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 <div class="cam-ov hidden" id="camOv">
   <video id="camVideo" playsinline autoplay muted></video>
   <div class="cam-shade"></div>
@@ -564,5 +627,8 @@
     <div class="gl-lb-act"><a class="btn btn-secondary" id="glLbDrive" target="_blank" rel="noopener">Buka di Drive</a><button type="button" class="btn btn-primary" id="glLbOrder">Lihat Order</button></div>
   </div>
 </div>
+<script src="config.js?v=26"></script>
+<script src="app.js?v=42"></script>
+<script>if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 </body>
 </html>

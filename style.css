@@ -3480,3 +3480,17 @@ body.dark .oc-prog.full .ocp-bar i{background:linear-gradient(90deg,#10b981,#34d
   #page-recap .rc-actions .btn-export svg{width:15px;height:15px;}
 }
 @media (max-width:440px){ #page-recap .rc-actions .rc-x{display:none;} }
+
+/* ===== v43: menu "Lainnya" HP ikut role (item .hidden kalah oleh .more-item{display:flex !important}) + statistik popup detail tidak keluar kolom ===== */
+.more-grid .more-item.hidden,.more-sheet .more-item.hidden{display:none !important;}
+@media (max-width:600px){
+  #modalOrderDetail .od-stats{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px;}
+  #modalOrderDetail .od-stat{padding:10px 12px !important;}
+  #modalOrderDetail .od-stat:nth-child(1){order:1;}
+  #modalOrderDetail .od-stat:nth-child(3){order:2;}
+  #modalOrderDetail .od-stat:nth-child(2){order:3;grid-column:1/-1;}
+  #modalOrderDetail .od-stat small{font-size:10px;letter-spacing:.05em;}
+  #modalOrderDetail .od-stat b,#modalOrderDetail .od-stat:first-child b{font-size:15px !important;}
+  #modalOrderDetail .od-stat:nth-child(2) b{font-size:17px !important;}
+  #modalOrderDetail .od-stat:nth-child(1) b::after{content:" pcs";font-size:11px;font-weight:700;color:var(--muted);}
+}

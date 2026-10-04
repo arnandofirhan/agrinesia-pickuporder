@@ -3219,7 +3219,6 @@ body.dark .od-tl-meta b{color:#e8f5ee;}
 .act-ref:hover{background:#d3efe2;}
 .act-who{overflow-wrap:anywhere;}
 .act-card .od-tl-items{margin:0;}
-.act-card .od-tl-it .nm{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;}
 .act-card .od-tl-note{margin:0;}
 .act-foot{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;}
 .act-flow{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;}
@@ -3288,13 +3287,177 @@ body.dark #dashSplit .rk-more:hover{background:#1b3328;}
 body.dark .th-more{background:#16291f;color:#6ee7b7;border:0;}
 body.dark .th-more:hover{background:#1b3328;}
 
-/* ===== v35: nama item di Riwayat Update (HP) tidak terpotong ===== */
+
+/* ===== v36: nama item 1 baris + popup item/riwayat + ringkasan aktivitas + filter 2 kolom sama lebar ===== */
+.fit1{white-space:nowrap !important;overflow:hidden;text-overflow:ellipsis;min-width:0;overflow-wrap:normal !important;}
+
+/* -- Hampers Terlaris: nama 1 baris penuh, angka pindah ke baris bar -- */
+.th-top{display:block;}
+.th-name{display:block;}
+.th-mid{display:flex;align-items:center;gap:12px;margin:8px 0 7px;}
+.th-mid .th-bar{flex:1;margin:0;}
+.th-val{font-size:15px;line-height:1;}
+
+/* -- Popup detail: kartu item -- */
+.od-it{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px;border:1px solid #e3ece7;border-left:4px solid #f59e0b;border-radius:14px;background:#fff;box-shadow:0 6px 14px -12px rgba(10,60,40,.45);}
+.od-it.is-done{border-left-color:#22c55e;background:linear-gradient(180deg,#f3fbf7,#fff);}
+.od-it-name{font-size:14px;font-weight:800;line-height:1.3;color:#0b1b14;}
+.od-it-sub{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.od-it-meta{display:inline-flex;align-items:center;gap:6px;margin:0;min-width:0;font-size:12px;color:var(--muted);}
+.od-it-meta svg{flex:none;width:14px;height:14px;opacity:.8;}
+.od-it-meta b{color:#0b1b14;font-weight:700;}
+.od-it-qty{flex:none;display:inline-flex;align-items:baseline;gap:4px;min-width:0;padding:4px 11px;border-radius:99px;background:#e6f4ec;color:#0f5c3f;font-size:13.5px;font-weight:800;line-height:1.2;text-align:left;}
+.od-it-qty small{display:inline;font-size:10.5px;font-weight:700;color:#4b7a64;}
+.od-it-st{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px;padding-top:8px;border-top:1px dashed #e3ece7;}
+.od-it-st .od-it-undo{margin-left:auto;}
+body.dark .od-it{border-color:#223a2f;border-left-color:#f59e0b;box-shadow:none;}
+body.dark .od-it.is-done{border-left-color:#22c55e;background:#12261d;}
+body.dark .od-it-name,body.dark .od-it-meta b{color:#e8f5ee;}
+body.dark .od-it-qty{background:rgba(52,211,153,.14);color:#6ee7b7;} body.dark .od-it-qty small{color:#8fd3b4;}
+body.dark .od-it-st{border-top-color:#223a2f;}
+
+/* -- Popup Riwayat Update & kartu aktivitas: header ringkas, chip item 1 baris -- */
+.od-tl{gap:10px;}
+.od-tl-item{display:block;}
+.od-tl-item::before,.od-tl-item:not(:last-child)::before{display:none !important;}
+.od-tl-body{padding:11px 12px;border-radius:14px;}
+.od-tl-top{display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;gap:10px;}
+.od-tl-dot{width:26px;height:26px;}
+.od-tl-tt{display:flex;flex-direction:column;gap:1px;min-width:0;}
+.od-tl-tt b{display:flex;align-items:center;gap:7px;font-size:13.5px;}
+.od-tl-it{padding:7px 10px;font-weight:600;}
+.od-tl-it b{padding:2px 8px;border-radius:99px;background:#eaf5ef;font-size:11.5px;}
+.od-tl-item.is-rev .od-tl-it b,.act-card.is-rev .od-tl-it b{background:#fde7b8;color:#92560a;}
+body.dark .od-tl-it b{background:rgba(52,211,153,.14);}
+body.dark .od-tl-item.is-rev .od-tl-it b,body.dark .act-card.is-rev .od-tl-it b{background:rgba(245,158,11,.2);color:#fbbf6a;}
 @media (max-width:600px){
-  .od-tl-it{gap:6px;padding:6px 8px;font-size:11px;}
-  .od-tl-it i svg{width:13px;height:13px;}
-  .od-tl-it .nm{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.3;}
-  .od-tl-it b{font-size:11px;}
+  .od-tl-it>i{display:none;}
+  .od-tl-it{padding:7px 9px;font-size:12px;gap:6px;}
 }
+
+/* -- Ringkasan Riwayat Aktivitas -- */
+.act-stats{gap:10px;margin:14px 0 10px;}
+.act-stat{position:relative;overflow:hidden;gap:2px;padding:12px 12px 11px;border-radius:16px;box-shadow:0 8px 18px -16px rgba(10,60,40,.5);}
+.act-stat::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#0b6b43,#10b981);}
+.act-stat.ok::before{background:linear-gradient(90deg,#10b981,#34d399);}
+.act-stat.rev::before{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+.as-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px;}
+.as-ic{flex:none;width:26px;height:26px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:#eaf5ef;color:#0f5c3f;}
+.act-stat.ok .as-ic{background:#dcfce7;color:#15803d;} .act-stat.rev .as-ic{background:#fff1d0;color:#b45309;}
+.as-pct{font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;background:#f1f5f3;color:var(--muted);}
+.act-stat.ok .as-pct{background:#dcfce7;color:#166534;} .act-stat.rev .as-pct{background:#fff1d0;color:#8a4b08;}
+.act-ratio{display:flex;height:8px;border-radius:99px;overflow:hidden;background:#e6eee9;margin:0 2px 12px;}
+.act-ratio i{display:block;height:100%;}
+.act-ratio i.ok{background:linear-gradient(90deg,#10b981,#34d399);} .act-ratio i.rev{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+.act-why{display:block;background:#fffaf0;border:1px solid #fde7b8;border-radius:16px;padding:12px 14px;margin-bottom:6px;}
+.aw-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.aw-head .as-ic{width:24px;height:24px;border-radius:8px;background:#fde7b8;color:#b45309;}
+.aw-head b{flex:1;min-width:0;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#92560a;}
+.aw-head small{flex:none;font-size:11px;font-weight:700;color:#a8721c;}
+.aw-list{display:flex;flex-direction:column;gap:10px;}
+.aw-row{display:flex;align-items:center;gap:10px;}
+.aw-rank{flex:none;width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;background:#fde7b8;color:#92560a;}
+.aw-body{flex:1;min-width:0;}
+.aw-t{display:block;font-size:12.5px;font-weight:600;line-height:1.3;color:#5b3a06;overflow-wrap:anywhere;}
+.aw-bar{height:5px;border-radius:99px;background:#fdecc6;margin-top:5px;overflow:hidden;}
+.aw-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+.aw-c{flex:none;min-width:20px;text-align:right;font-size:13px;font-weight:800;color:#92560a;}
+body.dark .act-stat{box-shadow:none;}
+body.dark .as-ic{background:rgba(52,211,153,.16);color:#6ee7b7;}
+body.dark .act-stat.ok .as-ic{background:rgba(52,211,153,.16);color:#6ee7b7;} body.dark .act-stat.rev .as-ic{background:rgba(245,158,11,.2);color:#fbbf6a;}
+body.dark .as-pct{background:#16261f;color:#8fa89b;}
+body.dark .act-stat.ok .as-pct{background:rgba(52,211,153,.16);color:#6ee7b7;} body.dark .act-stat.rev .as-pct{background:rgba(245,158,11,.2);color:#fbbf6a;}
+body.dark .act-ratio{background:#16261f;}
+body.dark .act-why{background:#1d1a10;border-color:#4a3a14;}
+body.dark .aw-head .as-ic,body.dark .aw-rank{background:rgba(245,158,11,.2);color:#fbbf6a;}
+body.dark .aw-head b,body.dark .aw-c{color:#fbbf6a;} body.dark .aw-head small{color:#d9a24a;}
+body.dark .aw-t{color:#f3e3bd;} body.dark .aw-bar{background:rgba(245,158,11,.16);}
+@media (max-width:600px){
+  .act-stat{padding:11px 10px 10px;} .act-stat small{font-size:10.5px;}
+}
+
+/* -- Filter HP (Riwayat Aktivitas & Galeri Bukti): 2 kolom sama lebar, tinggi seragam -- */
+@media (max-width:900px){
+  #actFilterCard.filters-open .filter-grid,#glFilterCard.filters-open .filter-grid{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:8px !important;}
+  #actFilterCard.filters-open .filter-grid>select,#glFilterCard.filters-open .filter-grid>select,
+  #actFilterCard.filters-open .filter-grid>.date-wrap,#glFilterCard.filters-open .filter-grid>.date-wrap{grid-column:span 2 !important;width:100%;min-width:0;}
+  #actFilterCard.filters-open .filter-grid>#actUser,#actFilterCard.filters-open .filter-grid>#actStore,#glFilterCard.filters-open .filter-grid>#glStore{grid-column:span 2 !important;}
+  #actFilterCard.filters-open .filter-grid>select,#glFilterCard.filters-open .filter-grid>select,
+  #actFilterCard.filters-open .filter-grid>.date-wrap input[type=date],#glFilterCard.filters-open .filter-grid>.date-wrap input[type=date],
+  #actFilterCard.filters-open .filter-grid>.btn{height:42px !important;min-height:42px !important;font-size:13.5px !important;border-radius:12px;}
+  #actFilterCard.filters-open .filter-grid>.btn{grid-column:span 2 !important;width:100%;justify-content:center;}
+  #glFilterCard.filters-open .filter-grid>.btn{grid-column:1/-1 !important;width:100%;justify-content:center;height:42px !important;min-height:42px !important;border-radius:12px;}
+}
+
+/* ===== v37: filter Rekap (HP) - 2 kolom sama lebar, tinggi seragam ===== */
+@media (max-width:900px){
+  #recapFilterCard.filters-open .filter-grid{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:8px !important;}
+  #recapFilterCard.filters-open .filter-grid>select{grid-column:span 2 !important;width:100%;min-width:0;height:42px !important;min-height:42px !important;font-size:13.5px !important;border-radius:12px;text-overflow:ellipsis;}
+  #recapFilterCard.filters-open .filter-grid>#recapStatus{order:1;}
+  #recapFilterCard.filters-open .filter-grid>#recapType{order:2;}
+  #recapFilterCard.filters-open .filter-grid>#recapStore{order:3;}
+  #recapFilterCard.filters-open .filter-grid>#recapArea{order:4;}
+  #recapFilterCard.filters-open .filter-grid>.btn{order:5;grid-column:1/-1 !important;width:100%;justify-content:center;height:42px !important;min-height:42px !important;border-radius:12px;}
+}
+
+/* ===== v38: kartu item di halaman Orders - nama 1 baris penuh, ikon/status/qty pindah ke baris bawah ===== */
+.oc-it{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"nm nm nm" "ic st q";column-gap:8px;row-gap:7px;padding:10px 12px;}
+.oc-it-n{font-size:13.5px;font-weight:800;color:#0b1b14;}
+.oc-it-ic{width:22px;height:22px;border-radius:7px;}
+.oc-it-ic svg{width:13px;height:13px;}
+.oc-it-s{align-self:center;justify-self:start;}
+.oc-it-q{align-self:center;padding:2px 10px;}
+body.dark .oc-it-n{color:#e8f5ee;}
+
+/* ===== v39: info order di kartu Orders - panel 2 kolom rapi dengan ikon ===== */
+.oc-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding:10px;border-radius:14px;background:#f4f9f6;border:1px solid #e3ece7;}
+.oi{display:flex;align-items:center;gap:9px;min-width:0;padding:8px 10px;border-radius:11px;background:#fff;border:1px solid #e8f0ec;}
+.oi-store,.oi-date{grid-column:1/-1;}
+.oi-ic{flex:none;width:28px;height:28px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:#e6f4ec;color:#0f7a52;}
+.oi-ic svg{width:15px;height:15px;}
+.oi-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+.oi-tx small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0;}
+.oi-tx b{display:block;font-size:13px;font-weight:800;line-height:1.25;color:#0b1b14;}
+.oi-tx b em{font-style:normal;font-size:10.5px;font-weight:700;color:var(--muted);margin-left:4px;}
+.oi-type.is-del .oi-ic{background:#e0ecff;color:#1d4ed8;}
+.oi-type.is-pick .oi-ic{background:#fff1d0;color:#b45309;}
+.oi-qty .oi-ic{background:#ede9fe;color:#6d28d9;}
+.oi-date .oi-ic{background:#fde7e7;color:#b91c1c;}
+.oi-date .sched-badge{flex:none;margin:0;padding:4px 10px;font-size:10.5px;}
+body.dark .oc-info{background:#0d1813;border-color:#1d3329;}
+body.dark .oi{background:#12201a;border-color:#223a2f;}
+body.dark .oi-ic{background:rgba(52,211,153,.14);color:#6ee7b7;}
+body.dark .oi-type.is-del .oi-ic{background:rgba(96,165,250,.16);color:#93c5fd;}
+body.dark .oi-type.is-pick .oi-ic{background:rgba(245,158,11,.18);color:#fbbf6a;}
+body.dark .oi-qty .oi-ic{background:rgba(167,139,250,.18);color:#c4b5fd;}
+body.dark .oi-date .oi-ic{background:rgba(248,113,113,.16);color:#fca5a5;}
+body.dark .oi-tx b{color:#e8f5ee;}
+
+/* ===== v40: header kartu Orders - ref kiri, progres + status rapi di kanan, ada garis pemisah ===== */
+.oc-compact .order-card-top{display:flex !important;align-items:center;justify-content:space-between;flex-wrap:nowrap !important;gap:8px;margin:0 0 10px !important;padding-bottom:10px;border-bottom:1px dashed #dbe8e1;}
+.oc-compact .order-card-top .oc-ref{flex:none;margin:0;padding:5px 10px;border-radius:9px;font-size:12px;font-weight:700;}
+.oc-top-r{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0;flex:0 1 auto;}
+.oc-top-r .badge{flex:0 1 auto;min-width:0;white-space:nowrap;font-size:11px;padding:5px 10px;}
+.oc-compact .order-card-top .pg{margin:0;flex:none;align-items:center;gap:3px;padding:4px 9px;border-radius:99px;font-size:11px;font-weight:700;}
+.oc-compact .order-card-top .pg b{font-size:12.5px;}
+.oc-compact .order-card-top .pg::after{content:"item";margin-left:3px;font-size:10px;font-weight:700;opacity:.75;}
+body.dark .oc-compact .order-card-top{border-bottom-color:#223a2f;}
 @media (max-width:360px){
-  .od-tl-it{font-size:10.5px;padding:6px 7px;} .od-tl-it b{font-size:10.5px;}
+  .oc-compact .order-card-top .pg::after{display:none;}
+  .oc-top-r .badge{font-size:10.5px;padding:5px 8px;}
 }
+
+/* ===== v41: progres dipindah dari header ke baris sendiri (bar + angka rata, tidak naik-turun) ===== */
+.oc-compact .order-card-top .pg{display:none !important;}
+.oc-prog{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:7px 10px;border-radius:11px;background:#f4f9f6;border:1px solid #e3ece7;}
+.ocp-l{flex:none;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);line-height:1;}
+.ocp-bar{flex:1;min-width:0;height:6px;border-radius:99px;background:#dfe9e4;overflow:hidden;}
+.ocp-bar i{display:block;height:100%;border-radius:99px;background:#cbd5d0;}
+.ocp-n{flex:none;min-width:34px;text-align:right;font-size:12.5px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:#5b7266;}
+.oc-prog.part .ocp-bar i{background:linear-gradient(90deg,#f59e0b,#fbbf24);} .oc-prog.part .ocp-n{color:#8a4b08;}
+.oc-prog.full .ocp-bar i{background:linear-gradient(90deg,#10b981,#34d399);} .oc-prog.full .ocp-n{color:#166534;}
+body.dark .oc-prog{background:#0d1813;border-color:#1d3329;}
+body.dark .ocp-bar{background:#1b2e25;} body.dark .ocp-bar i{background:#3a5247;}
+body.dark .ocp-n{color:#9ab5a7;}
+body.dark .oc-prog.part .ocp-bar i{background:linear-gradient(90deg,#f59e0b,#fbbf24);} body.dark .oc-prog.part .ocp-n{color:#fbbf24;}
+body.dark .oc-prog.full .ocp-bar i{background:linear-gradient(90deg,#10b981,#34d399);} body.dark .oc-prog.full .ocp-n{color:#6ee7a0;}

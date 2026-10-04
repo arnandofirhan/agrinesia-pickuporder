@@ -129,10 +129,11 @@ var USER_PAGE = { no: 1, size: 25 };
 var TTL = 90000; // cache dianggap segar selama 90 detik
 var CACHE = { dashboard: 0, orders: 0, lookup: 0, users: 0 };
 var ADMIN_PAGES = ['users', 'stores', 'areas'];
-var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap Hampers', gallery: 'Galeri Bukti', users: 'Users', stores: 'Stores', areas: 'Area' };
+var TITLES = { dashboard: 'Dashboard', orders: 'Orders', recap: 'Rekap Hampers', gallery: 'Galeri Bukti', calendar: 'Kalender Pengambilan', activity: 'Riwayat Aktivitas', users: 'Users', stores: 'Stores', areas: 'Area' };
 
 /* ============== ICONS (Lucide, 2D flat) ============== */
 var ICONS = {
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
   image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
   clipboard: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
@@ -412,7 +413,9 @@ function statusBadge(status) {  var map = {
     READY_FOR_PICKUP: ['Ready for Pickup', 'badge-warning'],
     READY_FOR_DELIVERY: ['Ready for Delivery', 'badge-purple'],
     COMPLETED_PICKUP: ['Completed Pickup', 'badge-success'],
-    COMPLETED_DELIVERY: ['Completed Delivery', 'badge-info']
+    COMPLETED_DELIVERY: ['Completed Delivery', 'badge-info'],
+    PARTIAL_PICKUP: ['Partial Pickup', 'badge-partial'],
+    PARTIAL_DELIVERY: ['Partial Delivery', 'badge-partial']
   };
   var d = map[status] || [status, 'badge-default'];
   return '<span class="badge ' + d[1] + '">' + esc(d[0]) + '</span>';
@@ -444,7 +447,53 @@ function schedBadge_(o) {
   var s = schedInfo_(o), m = ({ overdue: 'sb-over', today: 'sb-today', late: 'sb-late', ontime: 'sb-ok' })[s.k];
   return m ? '<span class="sched-badge ' + m + '">' + esc(schedText_(o)) + '</span>' : '';
 }
+/* ===== Grouping: banyak item (baris sheet) -> 1 order. byDate=true: pisah juga per Jadwal Diminta (dipakai kalender) ===== */
+function groupOrders_(rows, byDate) {
+  var map = {}, out = [];
+  (rows || []).forEach(function (o) {
+    var k = o.orderReference + (byDate ? '||' + dkey_(o.deliveryDate) : '');
+    var g = map[k];
+    if (!g) { g = map[k] = { orderReference: o.orderReference, customer: o.customer, phone: o.phone, outletName: o.outletName, area: o.area, deliveryType: o.deliveryType, items: [] }; out.push(g); }
+    g.items.push(o);
+  });
+  out.forEach(finalizeGroup_);
+  return out;
+}
+function finalizeGroup_(g) {
+  var it = g.items, del = isDeliveryOrder(g);
+  var open = it.filter(function (x) { return !isDoneStatus_(x.pickupStatus); });
+  g.total = it.length; g.done = it.length - open.length; g.complete = open.length === 0; g.partial = g.done > 0 && !g.complete;
+  g.qty = 0; g.revenue = 0;
+  it.forEach(function (x) { g.qty += Number(x.qty) || 0; g.revenue += Number(x.revenue) || 0; });
+  g.pickupStatus = g.complete ? (del ? 'COMPLETED_DELIVERY' : 'COMPLETED_PICKUP') : (del ? 'READY_FOR_DELIVERY' : 'READY_FOR_PICKUP');
+  g.badgeKey = g.partial ? (del ? 'PARTIAL_DELIVERY' : 'PARTIAL_PICKUP') : g.pickupStatus;
+  var pool = g.complete ? it : open, best = null;
+  pool.forEach(function (x) { var k = dkey_(x.deliveryDate); if (k && (!best || k < best.k)) best = { k: k, v: x.deliveryDate }; });
+  g.deliveryDate = best ? best.v : '';
+  var act = '', up = null;
+  it.forEach(function (x) { var k = dkey_(x.actualDate); if (k && k > act) act = k; if (x.updatedAt && (!up || String(x.updatedAt) > String(up.updatedAt))) up = x; });
+  g.actualDate = g.complete ? act : '';
+  g.updatedAt = up ? up.updatedAt : ''; g.updatedBy = up ? up.updatedBy : '';
+  g.hamperName = it.map(function (x) { return x.hamperName; }).filter(Boolean).join(' \u00b7 ');
+}
+function findGroup_(ref) { return groupOrders_((STATE.orders || []).filter(function (o) { return String(o.orderReference) === String(ref); }))[0]; }
+function findItemByRow_(row) { return (STATE.orders || []).filter(function (o) { return String(o.row) === String(row); })[0]; }
+function statDelta_(g, sign) {
+  var s = STATE.stats; if (!s || !g) return; var del = isDeliveryOrder(g), k;
+  k = g.complete ? (del ? 'completedDelivery' : 'completedPickup') : (del ? 'readyForDelivery' : 'readyForPickup');
+  s[k] = Math.max(0, (Number(s[k]) || 0) + sign);
+  if (g.partial) { k = del ? 'partialDelivery' : 'partialPickup'; s[k] = Math.max(0, (Number(s[k]) || 0) + sign); }
+}
+function itemMeta_(it) { return esc(it.hamperName || '-') + ' <b>&times;' + esc(it.qty) + '</b>'; }
 function isStoreRole_() { var r = STATE.user && STATE.user.role; return r === 'STORE' || r === 'STORE_USER'; }
+/* Aturan seragam filter Store & Area di semua menu:
+   ADMIN = selalu tampil | MANAGER (>1 store) = tampil | STORE / Manager 1 store = disembunyikan */
+function scopeVis_() {
+  if (isAdmin()) return { store: true, area: true };
+  var n = (STATE.lookup && STATE.lookup.stores) ? STATE.lookup.stores.length : 0;
+  if (!n) { var m = {}; (STATE.orders || []).forEach(function (o) { if (o.outletName) m[o.outletName] = 1; }); n = Object.keys(m).length; }
+  return { store: n > 1, area: n > 1 };
+}
 
 function activeBadge(s) {
   return s === 'ACTIVE' ? '<span class="badge badge-success">ACTIVE</span>' : '<span class="badge badge-default">INACTIVE</span>';
@@ -513,14 +562,14 @@ function bindEvents() {
     if ($(resetId)) $(resetId).addEventListener('click', function () { setTimeout(refreshDot, 50); });
     refreshDot();
   }
-  (function () {
-    var dw = $('filterDateWrap'), di = $('filterDate'); if (!dw || !di) return;
+  ['filterDate:filterDateWrap', 'filterActual:filterActualWrap'].forEach(function (p) {
+    var ids = p.split(':'), di = $(ids[0]), dw = $(ids[1]); if (!dw || !di) return;
     function sync() { dw.classList.toggle('empty', !di.value); }
     di.addEventListener('change', sync); di.addEventListener('input', sync);
     if ($('resetFilterBtn')) $('resetFilterBtn').addEventListener('click', function () { setTimeout(sync, 60); });
     sync();
-  })();
-  initFilterToggle('orders', ['searchInput', 'filterStatus', 'filterStore', 'filterArea', 'filterDeliveryType', 'filterDate'], 'resetFilterBtn');
+  });
+  initFilterToggle('orders', ['searchInput', 'filterStatus', 'filterStore', 'filterArea', 'filterDeliveryType', 'filterItems', 'filterDate', 'filterActual'], 'resetFilterBtn');
   initFilterToggle('users', ['userSearchInput', 'userFilterRole', 'userFilterStatus'], 'userResetFilterBtn');
   initFilterToggle('stores', ['storeSearchInput', 'storeFilterArea', 'storeFilterStatus'], 'storeResetFilterBtn');
   $('sidebarToggle').addEventListener('click', toggleSidebar);
@@ -565,11 +614,12 @@ function bindEvents() {
   // Filter order: client-side dari cache (instan, tanpa request)
   var rerender = function () { STATE.pageNo = 1; renderOrders(); };
   $('searchInput').addEventListener('input', debounce(rerender, 150));
-  ['filterStatus', 'filterStore', 'filterArea', 'filterDeliveryType', 'filterDate'].forEach(function (id) {
+  ['filterStatus', 'filterStore', 'filterArea', 'filterDeliveryType', 'filterItems', 'filterDate', 'filterActual'].forEach(function (id) {
     $(id).addEventListener('change', rerender);
   });
   $('resetFilterBtn').addEventListener('click', resetFilters);
   bindProofRecap_();
+  bindCalendar_();
   bindGallery_();
   $('exportOrdersBtn').addEventListener('click', exportOrdersExcel);
   $('orderPageSize').addEventListener('change', function () { PAGE_SIZE = +this.value || 25; STATE.pageNo = 1; renderOrders(); });
@@ -645,8 +695,10 @@ function bindEvents() {
     else if (act === 'recap-go') { var rg = {}; try { rg = JSON.parse(v); } catch (e) {} goOrders(rg); }
     else if (act === 'jump-store') goOrders({ store: v });
     else if (act === 'jump-area') goOrders({ area: v });
-    else if (act === 'complete') { var co = findOrder(v); if (co) askComplete(co); }
-    else if (act === 'revert') { var ro = findOrder(v); if (ro) askRevert(ro); }
+    else if (act === 'complete') { var co = findGroup_(v); if (co) askComplete(co); }
+    else if (act === 'revert') { var ro = findGroup_(v); if (ro) askRevert(ro); }
+    else if (act === 'revert-item') { var rit = findItemByRow_(v); if (rit) askRevert(findGroup_(rit.orderReference), [Number(rit.row)]); }
+    else if (act === 'pf-all') pfAll_();
     else if (act === 'revert-chip') { $('revertReason').value = v; syncRevertBtn(); $('revertReason').focus(); }
     else if (act === 'revert-submit') submitRevert();
     else if (act === 'proof-mode') setProofMode_(v);
@@ -659,6 +711,10 @@ function bindEvents() {
     else if (act === 'recap-group') { RECAP.group = v; renderRecap(); }
     else if (act === 'recap-copy') copyRecap_();
     else if (act === 'recap-export') exportRecapExcel_();
+    else if (act === 'cal-prev') calShift_(-1);
+    else if (act === 'cal-next') calShift_(1);
+    else if (act === 'cal-today') { var tn = new Date(); CAL.y = tn.getFullYear(); CAL.m = tn.getMonth(); renderCalendar(); }
+    else if (act === 'cal-day') openCalDay_(v);
     else if (act === 'retry') {
       if (v === 'dashboard') { STATE.stats = null; loadDashboard(true); }
       else if (v === 'orders') { navigateTo('orders'); loadOrders(true); }
@@ -786,12 +842,13 @@ function restoreSessionUI(data) {
   $('userRole').title = data.storeName || '';
   $('userAvatar').textContent = nm.charAt(0).toUpperCase();
   if (!isAdmin()) document.querySelectorAll('.admin-only').forEach(function (el) { el.classList.add('hidden'); });
+  document.querySelectorAll('.store-hide').forEach(function (el) { el.classList.toggle('hidden', isStoreRole_()); });
+  document.querySelectorAll('.non-admin-only').forEach(function (el) { el.classList.toggle('hidden', isAdmin()); });
   tickClock();
 
   // Buka halaman terakhir (mis. tetap di Orders saat refresh); hanya data halaman itu yang dimuat
-  var startPage = pageFromPath_() || store('pom_page');
+  var startPage = store('pom_page');
   if (!startPage || !TITLES[startPage]) startPage = 'dashboard';
-  STATE.urlReady = false;
   hydrateCache_();      // tampil instan dari data terakhir, lalu disegarkan di bawah
   loadNotifRead_();
   navigateTo(startPage); // data halaman aktif diminta lebih dulu
@@ -816,6 +873,8 @@ function resetToLogin() {
   closeNotifPopover();
   resetFilters(true);
   document.querySelectorAll('.admin-only').forEach(function (el) { el.classList.remove('hidden'); });
+  document.querySelectorAll('.store-hide').forEach(function (el) { el.classList.remove('hidden'); });
+  document.querySelectorAll('.non-admin-only').forEach(function (el) { el.classList.toggle('hidden', isAdmin()); });
   document.querySelectorAll('.page').forEach(function (p) { p.classList.add('hidden'); });
   $('page-dashboard').classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.toggle('active', n.getAttribute('data-page') === 'dashboard'); });
@@ -835,8 +894,6 @@ function doLogout() {
   closeAllModals();
   sessDel('pom_token'); sessDel('pom_user'); sessDel('pom_page');
   resetToLogin();
-  STATE.urlReady = false;
-  try { history.replaceState(null, '', '/'); } catch (e) {}   // URL kembali ke root saat logout
   try { google.script.run.withSuccessHandler(function () {}).withFailureHandler(function () {}).logout(token); } catch (e) {}
 }
 
@@ -852,33 +909,14 @@ function toggleMoreSheet_(force) {
   $('moreSheet').classList.toggle('open', open); $('moreSheetBackdrop').classList.toggle('open', open);
   $('bnMoreBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
 }
-/* ---- URL per halaman: /dashboard, /orders, /rekap, /galeri, /users, /stores, /area ---- */
-var PAGE_PATH = { dashboard: 'dashboard', orders: 'orders', recap: 'rekap', gallery: 'galeri', users: 'users', stores: 'stores', areas: 'area' };
-function pageFromPath_() {
-  var seg = (location.pathname || '/').replace(/^\/+|\/+$/g, '').split('/')[0].toLowerCase();
-  for (var k in PAGE_PATH) if (PAGE_PATH[k] === seg) return k;
-  return null;
-}
-function syncUrl_(page, replace) {
-  try {
-    var want = '/' + PAGE_PATH[page];
-    if (location.pathname === want) return;
-    history[replace ? 'replaceState' : 'pushState']({ page: page }, '', want + location.search);
-  } catch (e) {}
-}
-window.addEventListener('popstate', function () {
-  if (!STATE.user) return;
-  var p = pageFromPath_();
-  if (p && p !== STATE.page) navigateTo(p, true);
-});
-function navigateTo(page, fromPop) {
+function navigateTo(page) {
   if (ADMIN_PAGES.indexOf(page) !== -1 && !isAdmin()) page = 'dashboard';
+  if (page === 'activity' && isStoreRole_()) page = 'dashboard';
   STATE.page = page; store('pom_page', page);
-  if (!fromPop) syncUrl_(page, !STATE.urlReady); STATE.urlReady = true;
   document.querySelectorAll('.page').forEach(function (p) { p.classList.add('hidden'); });
   $('page-' + page).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.toggle('active', n.getAttribute('data-page') === page); });
-  var moreBtn = $('bnMoreBtn'); if (moreBtn) moreBtn.classList.toggle('active', page === 'users' || page === 'stores' || page === 'areas');
+  var moreBtn = $('bnMoreBtn'); if (moreBtn) moreBtn.classList.toggle('active', page === 'users' || page === 'stores' || page === 'areas' || page === 'gallery' || page === 'activity');
   toggleMoreSheet_(false); closeUserMenu_();
   $('headerTitle').textContent = TITLES[page];
   document.body.classList.remove('drawer-open');
@@ -888,6 +926,8 @@ function navigateTo(page, fromPop) {
   else if (page === 'orders') { renderOrders(); if (!fresh('orders')) loadOrders(false); }
   else if (page === 'recap') { renderRecap(); if (!fresh('orders')) loadOrders(false); }
   else if (page === 'gallery') { renderGallery(); if (!fresh('orders')) loadOrders(false); }
+  else if (page === 'calendar') { renderCalendar(); if (!fresh('orders')) loadOrders(false); }
+  else if (page === 'activity') { renderActivity(); loadActivity(false); if (!fresh('orders')) loadOrders(false); }
   else if (page === 'users') loadUsers(false);
   else {
     if (STATE.lookup) renderAdminLists();
@@ -895,6 +935,141 @@ function navigateTo(page, fromPop) {
     if (!fresh('lookup')) loadLookup(false);
   }
 }
+
+
+/* ============== DASHBOARD: HAMPERS TERLARIS ============== */
+var TH = { mode: 'qty', all: false };
+function renderTopHampers_() {
+  var box = $('topHampers'); if (!box) return;
+  if (!STATE.orders) { box.innerHTML = '<div class="act-sk"></div><div class="act-sk"></div><div class="act-sk"></div>'; return; }
+  var m = {};
+  STATE.orders.forEach(function (o) {
+    var n = String(o.hamperName || '').trim(); if (!n) return;
+    var x = m[n] || (m[n] = { name: n, qty: 0, refs: {}, cust: {} });
+    x.qty += Number(o.qty) || 0; x.refs[o.orderReference] = 1;
+    var c = String(o.customer || '').trim().toLowerCase(); if (c) x.cust[c] = 1;
+  });
+  var list = Object.keys(m).map(function (k) { var x = m[k]; return { name: x.name, qty: x.qty, orders: Object.keys(x.refs).length, cust: Object.keys(x.cust).length }; });
+  var mode = TH.mode, totalPcs = 0; list.forEach(function (x) { totalPcs += x.qty; });
+  list.sort(function (a, b) { return (b[mode] - a[mode]) || (b.orders - a.orders) || (b.qty - a.qty) || a.name.localeCompare(b.name, 'id'); });
+  var sub = $('thSub'); if (sub) sub.textContent = list.length ? list.length + ' jenis hampers \u00b7 ' + totalPcs.toLocaleString('id-ID') + ' pcs dipesan' : 'Paling banyak dipesan customer';
+  document.querySelectorAll('.th-tabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-th') === mode); });
+  if (!list.length) { box.innerHTML = '<div class="act-empty">Belum ada data hampers.</div>'; return; }
+  var max = list[0][mode] || 1, shown = TH.all ? list.slice(0, 15) : list.slice(0, 5);
+  box.innerHTML = '<div class="th-list">' + shown.map(function (x, i) {
+    var pct = Math.max(4, Math.round(x[mode] / max * 100));
+    return '<div class="th-row r' + (i < 3 ? i + 1 : 0) + '"><span class="th-rank">' + (i + 1) + '</span>' +
+      '<div class="th-body"><div class="th-top"><b class="th-name">' + esc(x.name) + '</b><span class="th-val">' + x[mode].toLocaleString('id-ID') + '<small>' + (mode === 'qty' ? 'pcs' : 'order') + '</small></span></div>' +
+      '<div class="th-bar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="th-meta"><span>' + x.qty.toLocaleString('id-ID') + ' pcs</span><span>' + x.orders.toLocaleString('id-ID') + ' order</span><span>' + x.cust.toLocaleString('id-ID') + ' customer</span></div></div></div>';
+  }).join('') + '</div>' + (list.length > 5 ? '<button type="button" class="th-more" id="thMore">' + (TH.all ? 'Tampilkan lebih sedikit' : 'Lihat lebih banyak (' + Math.min(list.length, 15) + ')') + '</button>' : '');
+}
+document.addEventListener('click', function (e) {
+  var t = e.target && e.target.closest ? e.target.closest('[data-th],#thMore') : null; if (!t) return;
+  if (t.id === 'thMore') TH.all = !TH.all; else TH.mode = t.getAttribute('data-th');
+  renderTopHampers_();
+});
+
+/* ============== RIWAYAT AKTIVITAS ============== */
+var ACT = { rows: null, at: 0, shown: 30, loading: false, err: '' };
+function actParse_(r) {
+  var notes = String(r.notes || ''), rev = /^REVERT/.test(notes);
+  var e = { ref: r.orderReference, rev: rev, at: r.updatedAt, by: r.updatedBy || '-', prev: r.previousStatus, next: r.newStatus, reason: '', item: null, rest: [] };
+  notes.split(' | ').forEach(function (p) {
+    var m;
+    if ((m = p.match(/^Item:\s*(.*?)\s+x(\d+)\s*$/))) { e.item = { name: m[1], qty: m[2] }; return; }
+    if (/^Alasan:/.test(p)) { e.reason = p.replace(/^Alasan:\s*/, ''); return; }
+    if (/^(Bukti|Tgl |Diselesaikan oleh|REVERT)/.test(p)) return;
+    if (p.trim()) e.rest.push(p.trim());
+  });
+  if (!rev && e.rest.length) e.reason = e.rest.join(' | ');
+  return e;
+}
+function loadActivity(force) {
+  if (ACT.loading) return;
+  if (!force && ACT.rows && (Date.now() - ACT.at) < 60000) return;
+  ACT.loading = true; ACT.err = '';
+  api('getAuditLog', [STATE.token, ''], function (res) {
+    ACT.loading = false;
+    if (!res.success) { ACT.err = res.message || 'Gagal memuat riwayat.'; renderActivity(); return; }
+    var groups = [], idx = {};
+    (res.data || []).forEach(function (r) {
+      var e = actParse_(r), k = [e.ref, e.rev, e.at, e.by, e.prev, e.next, e.reason].join('\u0001');
+      if (idx[k] === undefined) { idx[k] = groups.length; groups.push({ e: e, items: [] }); }
+      if (e.item) groups[idx[k]].items.push(e.item);
+    });
+    ACT.rows = groups; ACT.at = Date.now(); ACT.shown = 30; renderActivity();
+  }, function () { ACT.loading = false; ACT.err = 'Gagal memuat riwayat. Periksa koneksi Anda.'; renderActivity(); });
+}
+function actDayLabel_(at) {
+  var k = dkey_(at), t = todayKey_(); if (!k) return '-';
+  var d = dayDiff_(k, t);
+  if (d === 0) return 'Hari ini'; if (d === 1) return 'Kemarin';
+  return fmtDate(k.replace(/\//g, '-'));
+}
+function actFill_(id, label, names, show) {
+  var el = $(id); if (!el) return;
+  var cur = el.value, ks = Object.keys(names).sort(function (a, b) { return a.localeCompare(b, 'id', { numeric: true }); });
+  el.innerHTML = '<option value="">' + label + '</option>' + ks.map(function (k) { return '<option value="' + esc(k) + '">' + esc(k) + '</option>'; }).join('');
+  el.value = names[cur] ? cur : ''; el.classList.toggle('hidden', !show); if (!show) el.value = '';
+}
+function renderActivity() {
+  var box = $('actList'); if (!box) return;
+  var sum = $('actSummary');
+  if (!ACT.rows) {
+    if (sum) sum.innerHTML = '';
+    box.innerHTML = ACT.err ? '<div class="act-empty">' + esc(ACT.err) + '<br><button type="button" class="btn btn-secondary act-retry" id="actRetry">Coba lagi</button></div>' : '<div class="act-sk"></div><div class="act-sk"></div><div class="act-sk"></div>';
+    return;
+  }
+  var OM = {}; (STATE.orders || []).forEach(function (o) { if (!OM[o.orderReference]) OM[o.orderReference] = o; });
+  var vis = scopeVis_(), users = {}, stores = {}, areas = {};
+  ACT.rows.forEach(function (g) { var o = OM[g.e.ref] || {}; if (g.e.by && g.e.by !== '-') users[g.e.by] = 1; if (o.outletName) stores[o.outletName] = 1; if (o.area) areas[o.area] = 1; });
+  actFill_('actUser', 'Semua User', users, true); actFill_('actStore', 'Semua Store', stores, vis.store); actFill_('actArea', 'Semua Area', areas, vis.area);
+  var q = $('actSearch').value.trim().toLowerCase(), ty = $('actType').value, us = $('actUser').value, sf = $('actStore').value, af = $('actArea').value, dt = $('actDate').value.replace(/-/g, '/');
+  var n = 0; ['actType', 'actUser', 'actStore', 'actArea', 'actDate'].forEach(function (id) { if ($(id).value) n++; });
+  $('actDot').classList.toggle('hidden', !n); $('actDateWrap').classList.toggle('empty', !$('actDate').value);
+  var rows = ACT.rows.filter(function (g) {
+    var e = g.e, o = OM[e.ref] || {};
+    if (ty === 'ok' && e.rev) return false; if (ty === 'rev' && !e.rev) return false;
+    if (us && e.by !== us) return false; if (sf && o.outletName !== sf) return false; if (af && o.area !== af) return false;
+    if (dt && dkey_(e.at) !== dt) return false;
+    if (q) { var hay = [e.ref, o.customer, o.outletName, e.by, e.reason, g.items.map(function (i) { return i.name; }).join(' ')].join(' ').toLowerCase(); if (hay.indexOf(q) === -1) return false; }
+    return true;
+  });
+  var nOk = 0, nRev = 0, why = {};
+  rows.forEach(function (g) { if (g.e.rev) { nRev++; var r = g.e.reason.trim(); if (r) { var k = r.toLowerCase(); (why[k] || (why[k] = { t: r, c: 0 })).c++; } } else nOk++; });
+  $('actCount').textContent = rows.length.toLocaleString('id-ID') + ' aktivitas';
+  var wl = Object.keys(why).map(function (k) { return why[k]; }).sort(function (a, b) { return b.c - a.c; }).slice(0, 4);
+  sum.innerHTML = '<div class="act-stats"><div class="act-stat"><small>Total Aktivitas</small><b>' + rows.length.toLocaleString('id-ID') + '</b></div>' +
+    '<div class="act-stat ok"><small>Diselesaikan</small><b>' + nOk.toLocaleString('id-ID') + '</b></div>' +
+    '<div class="act-stat rev"><small>Dibatalkan</small><b>' + nRev.toLocaleString('id-ID') + '</b></div></div>' +
+    (wl.length ? '<div class="act-why"><span class="act-why-t">Alasan pembatalan teratas</span><div class="act-why-l">' + wl.map(function (w) { return '<span class="act-why-p">' + esc(w.t) + '<b>' + w.c + '</b></span>'; }).join('') + '</div></div>' : '');
+  if (!rows.length) { box.innerHTML = '<div class="act-empty">' + (ACT.rows.length ? 'Tidak ada aktivitas yang cocok dengan filter.' : 'Belum ada aktivitas tercatat.') + '</div>'; return; }
+  var show = rows.slice(0, ACT.shown), lastDay = '', html = '';
+  show.forEach(function (g) {
+    var e = g.e, o = OM[e.ref] || {}, day = actDayLabel_(e.at);
+    if (day !== lastDay) { html += '<div class="act-day">' + esc(day) + '</div>'; lastDay = day; }
+    var tm = String(e.at || '').match(/(\d{1,2}:\d{2})/), cnt = g.items.length > 1 ? '<em class="od-tl-cnt">' + g.items.length + ' item</em>' : '';
+    var who = [o.customer, o.outletName].filter(Boolean).join(' \u00b7 ');
+    html += '<div class="act-card ' + (e.rev ? 'is-rev' : 'is-ok') + '"><span class="act-ic">' + ic(e.rev ? 'undo' : 'check', 'sm') + '</span><div class="act-main">' +
+      '<div class="act-head"><b class="act-title">' + (e.rev ? 'Status dibatalkan' : 'Order diselesaikan') + cnt + '</b><time>' + esc(tm ? tm[1] : '') + '</time></div>' +
+      '<div class="act-order"><button type="button" class="act-ref mono" data-act="detail" data-v="' + esc(e.ref) + '" title="Lihat detail order">#' + esc(e.ref) + '</button>' + (who ? '<span class="act-who">' + esc(who) + '</span>' : '') + '</div>' +
+      (g.items.length ? '<div class="od-tl-items">' + g.items.map(function (it) { return '<span class="od-tl-it"><i>' + ic('layers', 'sm') + '</i><span class="nm">' + esc(it.name) + '</span><b>&times;' + esc(it.qty) + '</b></span>'; }).join('') + '</div>' : '') +
+      (e.reason ? '<div class="od-tl-note">' + (e.rev ? '<span class="od-tl-nl">Alasan</span>' : '') + esc(e.reason) + '</div>' : '') +
+      '<div class="act-foot"><span class="act-flow">' + statusBadge(e.prev) + '<span class="od-tl-arrow">&rarr;</span>' + statusBadge(e.next) + '</span><span class="act-by">oleh <b>' + esc(e.by) + '</b></span></div></div></div>';
+  });
+  if (rows.length > ACT.shown) html += '<button type="button" class="th-more act-more" id="actMore">Muat lebih banyak (' + (rows.length - ACT.shown) + ' lagi)</button>';
+  box.innerHTML = html;
+}
+document.addEventListener('input', function (e) { if (e.target && e.target.id === 'actSearch') { ACT.shown = 30; renderActivity(); } });
+document.addEventListener('change', function (e) { if (e.target && /^act(Type|User|Store|Area|Date)$/.test(e.target.id || '')) { ACT.shown = 30; renderActivity(); } });
+document.addEventListener('click', function (e) {
+  var t = e.target && e.target.closest ? e.target.closest('#actMore,#actResetBtn,#actToggleBtn,#actRetry') : null; if (!t) return;
+  if (t.id === 'actMore') { ACT.shown += 30; renderActivity(); }
+  else if (t.id === 'actRetry') { loadActivity(true); renderActivity(); }
+  else if (t.id === 'actResetBtn') { ['actSearch', 'actType', 'actUser', 'actStore', 'actArea', 'actDate'].forEach(function (id) { $(id).value = ''; }); ACT.shown = 30; renderActivity(); }
+  else { var c = $('actFilterCard'), open = !c.classList.contains('filters-open'); c.classList.toggle('filters-open', open); t.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+});
 
 /* ============== LOOKUP (store & area) ============== */
 function loadLookup(force) {
@@ -918,17 +1093,28 @@ function lookupFail(msg) {
 
 function populateFilters() {
   var sv = $('filterStore').value, av = $('filterArea').value;
-  $('filterStore').innerHTML = '<option value="">Semua Store</option>' + STATE.lookup.stores.map(function (s) {
+  var stores = STATE.lookup.stores || [], areas = STATE.lookup.areas || [];
+  if (!isAdmin()) {   // Manager/Store: hanya area dari store miliknya
+    var mine = {}; stores.forEach(function (s) { mine[s.areaId] = 1; });
+    areas = areas.filter(function (a) { return mine[a.areaId]; });
+  }
+  $('filterStore').innerHTML = '<option value="">Semua Store</option>' + stores.map(function (s) {
     return '<option value="' + esc(s.storeName) + '">' + esc(s.storeName) + '</option>';
   }).join('');
-  $('filterArea').innerHTML = '<option value="">Semua Area</option>' + STATE.lookup.areas.map(function (a) {
+  $('filterArea').innerHTML = '<option value="">Semua Area</option>' + areas.map(function (a) {
     return '<option value="' + esc(a.areaName) + '">' + esc(a.areaName) + '</option>';
   }).join('');
   setSel('filterStore', sv); setSel('filterArea', av);
+  // Admin: selalu tampil. Manager multi-store: tampil. Store 1 outlet: filter Store/Area disembunyikan (tidak berguna)
+  var vis = scopeVis_(), showStore = vis.store, showArea = vis.area;
+  $('filterStore').classList.toggle('hidden', !showStore); if (!showStore) $('filterStore').value = '';
+  $('filterArea').classList.toggle('hidden', !showArea); if (!showArea) $('filterArea').value = '';
 }
 
 /* ============== DASHBOARD ============== */
 function loadDashboard(force) {
+  if (!STATE.orders || !fresh('orders')) loadOrders(false);
+  renderTopHampers_();
   if (STATE.stats) renderDashboard(); else renderDashboardSkeleton();
   if (!force && STATE.stats && fresh('dashboard')) return;
   var fail = function (msg) {
@@ -958,6 +1144,7 @@ function goOrders(f) {
   setSel('filterArea', f.area || '');
   setSel('filterStore', f.store || '');
   setSel('filterDeliveryType', f.deliveryType || '');
+  setSel('filterItems', f.items || '');
   $('searchInput').value = f.search || '';
   try { $('searchInput').dispatchEvent(new Event('input')); } catch (e) {}
   STATE.pageNo = 1;
@@ -1125,11 +1312,12 @@ function rankList(obj, kind) {
 function hideSplitForStore_() {
   var g = $('dashSplit'); if (!g) return;
   var role = STATE.user && (STATE.user.role === 'STORE_USER' ? 'STORE' : STATE.user.role);
-  if (role === 'STORE') g.style.setProperty('display', 'none', 'important'); else g.style.removeProperty('display');   // user Store hanya melihat store-nya sendiri: ringkasan ini redundan
+  // user Store hanya melihat store-nya sendiri: ringkasan Per Area/Per Store redundan
+  if (role === 'STORE') g.style.setProperty('display', 'none', 'important'); else g.style.removeProperty('display');
 }
 function rkMore_(b) {
   var w = b.parentNode, on = w.classList.toggle('expanded');
-  b.textContent = on ? 'Ringkas' : 'Lihat semua (' + b.getAttribute('data-n') + ')';
+  b.textContent = on ? 'Sembunyikan' : 'Lihat semua (' + b.getAttribute('data-n') + ')';
 }
 function ensureDashTabs_(na, ns) {
   var g = $('dashSplit') || document.querySelector('#page-dashboard .grid-2'); if (!g) return;
@@ -1168,12 +1356,12 @@ function renderDashboard() {
     (topS.k ? '<span class="kc kc-top kc-del" data-act="jump-store" data-v="' + esc(topS.k) + '" title="Lihat order store ' + esc(topS.k) + '"><i></i>Store teratas <b>' + esc(topS.k) + ' (' + topS.v + ')</b></span>' : '') +
     '<span class="kc kc-wait"><i></i>Rata-rata <b>' + (Math.round(qpo * 10) / 10).toLocaleString('id-ID') + ' pcs/order</b></span>';
     var cards = [
-    { l: 'Total Order', v: s.totalOrder, c: 'kpi-green', i: 'file', sub: 'Seluruh pickup order', st: '', dt: '' },
-    { l: 'Ready for Pickup', v: s.readyForPickup, c: 'kpi-orange', i: 'clock', sub: 'Menunggu diambil', st: 'READY_FOR_PICKUP', dt: '' },
-    { l: 'Ready for Delivery', v: s.readyForDelivery, c: 'kpi-purple', i: 'clock', sub: 'Menunggu dikirim', st: 'READY_FOR_DELIVERY', dt: '' },
+    { l: 'Total Order', v: s.totalOrder, c: 'kpi-green', i: 'file', sub: 'Seluruh pickup order (1 nomor = 1 order)', st: '', dt: '' },
+    { l: 'Ready for Pickup', v: s.readyForPickup, c: 'kpi-orange', i: 'clock', sub: 'Menunggu diambil' + (Number(s.partialPickup) ? ' \u00b7 ' + s.partialPickup + ' sebagian' : ''), st: 'READY_FOR_PICKUP', dt: '' },
+    { l: 'Ready for Delivery', v: s.readyForDelivery, c: 'kpi-purple', i: 'clock', sub: 'Menunggu dikirim' + (Number(s.partialDelivery) ? ' \u00b7 ' + s.partialDelivery + ' sebagian' : ''), st: 'READY_FOR_DELIVERY', dt: '' },
     { l: 'Completed Pickup', v: s.completedPickup, c: 'kpi-blue', i: 'check', sub: 'Sudah diambil', st: 'COMPLETED_PICKUP', dt: '' },
     { l: 'Completed Delivery', v: s.completedDelivery, c: 'kpi-teal', i: 'truck', sub: 'Sudah dikirim', st: 'COMPLETED_DELIVERY', dt: '' },
-    { l: 'Total Quantity', v: s.totalQty, c: 'kpi-slate', i: 'layers', sub: 'Total item order', st: '', dt: '' },
+    { l: 'Total Quantity', v: s.totalQty, c: 'kpi-slate', i: 'layers', sub: Number(s.totalItem) ? Number(s.totalItem).toLocaleString('id-ID') + ' item hampers' : 'Total item order', st: '', dt: '' },
     { l: 'Total Revenue', v: s.totalRevenue || 0, c: 'kpi-gold kpi-wide', i: 'wallet', sub: 'Total pendapatan pre-order', st: '', dt: '', money: true },
     { l: 'Rata-rata Order', v: avgOrder, c: 'kpi-orange', i: 'wallet', sub: 'Revenue per order', st: '', dt: '', money: true },
     { l: 'Area Aktif', v: activeAreas, c: 'kpi-teal', i: 'map', sub: 'Area yang punya order', st: '', dt: '', act: 'area-active' },
@@ -1185,19 +1373,25 @@ function renderDashboard() {
 
   var sg = $('schedGrid');
   if (sg) {
+    var scTot = Number(s.totalOrder) || 0;
     var sc = [
-      { c: 'sc-over', i: 'alert', v: Number(s.overdue) || 0, l: 'Melewati Jadwal', sub: 'Belum diambil/dikirim, lewat tanggal permintaan', st: 'OVERDUE' },
-      { c: 'sc-today', i: 'clock', v: Number(s.dueToday) || 0, l: 'Jadwal Hari Ini', sub: 'Tanggal permintaan hari ini, belum selesai', st: 'DUE_TODAY' },
-      { c: 'sc-late', i: 'check', v: Number(s.completedLate) || 0, l: 'Selesai Terlambat', sub: 'Tgl aktual lebih dari tanggal permintaan', st: 'LATE_DONE' }
+      { c: 'sc-over', i: 'alert', v: Number(s.overdue) || 0, l: 'Melewati Jadwal', sub: 'Belum selesai & lewat jadwal diminta', st: 'OVERDUE' },
+      { c: 'sc-today', i: 'clock', v: Number(s.dueToday) || 0, l: 'Jadwal Hari Ini', sub: 'Jadwal diminta hari ini, belum selesai', st: 'DUE_TODAY' },
+      { c: 'sc-late', i: 'check', v: Number(s.completedLate) || 0, l: 'Selesai Terlambat', sub: 'Tgl selesai melewati jadwal diminta', st: 'LATE_DONE' }
     ];
     sg.innerHTML = sc.map(function (x) {
+      var pct = scTot ? Math.min(100, Math.round(x.v / scTot * 100)) : 0;
       return '<div class="sched-card ' + x.c + '" tabindex="0" role="button" data-act="goto-orders" data-v="' + x.st + '" data-dt="" title="Lihat order: ' + x.l + '">' +
-        '<div class="sc-ic">' + ic(x.i) + '</div><div class="sc-txt"><b>' + x.l + '</b><small>' + x.sub + '</small></div><div class="sc-num">' + x.v.toLocaleString('id-ID') + '</div></div>';
+        '<div class="sc-ic">' + ic(x.i) + '</div>' +
+        '<div class="sc-txt"><b>' + x.l + '</b><small>' + x.sub + '</small>' +
+        '<div class="sc-bar" title="' + pct + '% dari total order"><i style="width:' + pct + '%"></i></div></div>' +
+        '<div class="sc-side"><div class="sc-num">' + x.v.toLocaleString('id-ID') + '</div><span class="sc-pct">' + pct + '% order</span></div></div>';
     }).join('');
   }
   $('areaSummary').innerHTML = rankList(s.byArea, 'area');
   $('storeSummary').innerHTML = rankList(s.byStore, 'store');
   ensureDashTabs_(Object.keys(s.byArea || {}).length, Object.keys(s.byStore || {}).length);
+  renderTopHampers_();
   hideSplitForStore_();
   fitKpiValues_();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitKpiValues_);
@@ -1232,7 +1426,7 @@ function markNotifRead_(ref) {
 }
 
 function notifList_() {
-  return (STATE.orders || []).filter(function (o) { return isReadyStatus(o.pickupStatus); });
+  return groupOrders_(STATE.orders).filter(function (g) { return !g.complete; });
 }
 
 function updateBell() {
@@ -1322,13 +1516,14 @@ function loadOrders(force) {
   // Ambil semua order (sudah di-scope di server per role); filter dijalankan di client dari cache
   var fail = function (msg) {
     if (STATE.orders) { showToast(msg, 'error'); return; }
-    $('ordersTableBody').innerHTML = stateRow(10, msg, 'orders');
+    $('ordersTableBody').innerHTML = stateRow(12, msg, 'orders');
     $('ordersCardList').innerHTML = stateBlock(msg, 'orders');
   };
   api('getOrders', [STATE.token, {}], function (res) {
     if (!res.success) { fail(res.message); return; }
     STATE.orders = res.data || []; CACHE.orders = Date.now(); cachePut_('orders', STATE.orders);
-    renderOrders(); updateBell(); if (STATE.page === 'recap') renderRecap(); if (STATE.page === 'gallery') renderGallery();
+    renderOrders(); updateBell(); if (STATE.page === 'calendar') renderCalendar(); if (STATE.page === 'recap') renderRecap(); if (STATE.page === 'gallery') renderGallery();
+    if (STATE.page === 'dashboard') renderTopHampers_(); if (STATE.page === 'activity') renderActivity();
   }, function () { fail('Gagal memuat order. Periksa koneksi Anda.'); });
 }
 
@@ -1336,28 +1531,32 @@ function getFilters() {
   return {
     search: $('searchInput').value.trim().toLowerCase(),
     status: $('filterStatus').value, store: $('filterStore').value,
-    area: $('filterArea').value, deliveryType: $('filterDeliveryType').value,
-    date: $('filterDate').value
+    area: $('filterArea').value, deliveryType: $('filterDeliveryType').value, items: $('filterItems') ? $('filterItems').value : '',
+    date: $('filterDate').value, actual: $('filterActual') ? $('filterActual').value : ''
   };
 }
 
 function resetFilters(silent) {
   $('searchInput').value = ''; $('filterStatus').value = ''; $('filterStore').value = '';
-  $('filterArea').value = ''; $('filterDeliveryType').value = ''; $('filterDate').value = '';
+  $('filterArea').value = ''; $('filterDeliveryType').value = ''; if ($('filterItems')) $('filterItems').value = ''; $('filterDate').value = ''; if ($('filterActual')) $('filterActual').value = '';
   STATE.pageNo = 1;
   if (silent !== true) renderOrders();
 }
 
 function filteredOrders() {
   var f = getFilters();
-  return (STATE.orders || []).filter(function (o) {
-    if (f.status === 'READY') { if (!isReadyStatus(o.pickupStatus)) return false; }
-    else if (f.status === 'OVERDUE' || f.status === 'DUE_TODAY' || f.status === 'LATE_DONE') { if (schedInfo_(o).k !== ({ OVERDUE: 'overdue', DUE_TODAY: 'today', LATE_DONE: 'late' })[f.status]) return false; }
+  return groupOrders_(STATE.orders).filter(function (o) {
+    if (f.status === 'PARTIAL') { if (!o.partial) return false; }
+    else if (f.status === 'READY') { if (!isReadyStatus(o.pickupStatus)) return false; }
+    else if (f.status === 'OVERDUE' || f.status === 'DUE_TODAY' || f.status === 'LATE_DONE' || f.status === 'ON_TIME') { if (schedInfo_(o).k !== ({ OVERDUE: 'overdue', DUE_TODAY: 'today', LATE_DONE: 'late', ON_TIME: 'ontime' })[f.status]) return false; }
     else if (f.status && o.pickupStatus !== f.status) return false;
     if (f.area && (f.area === '__NONE__' ? !!o.area : o.area !== f.area)) return false;
     if (f.store && (f.store === '__NONE__' ? !!o.outletName : o.outletName !== f.store)) return false;
     if (f.deliveryType && o.deliveryType !== f.deliveryType) return false;
-    if (f.date && String(o.deliveryDate).replace(/\//g, '-').indexOf(f.date) === -1) return false;
+    if (f.items === 'MULTI' && o.total < 2) return false;
+    if (f.items === 'SINGLE' && o.total !== 1) return false;
+    if (f.date && !o.items.some(function (x) { return String(x.deliveryDate).replace(/\//g, '-').indexOf(f.date) !== -1; })) return false;
+    if (f.actual && !o.items.some(function (x) { return dkey_(x.actualDate) === dkey_(f.actual); })) return false;
     if (f.search) {
       return String(o.orderReference).toLowerCase().indexOf(f.search) !== -1 ||
         String(o.customer).toLowerCase().indexOf(f.search) !== -1 ||
@@ -1368,25 +1567,26 @@ function filteredOrders() {
   });
 }
 
-// Admin saja: batalkan status selesai (tombol hanya muncul untuk order yang sudah selesai)
+// Admin saja: batalkan status selesai (muncul bila minimal 1 item sudah selesai)
 function revertBtn(o, iconOnly) {
-  if (!isAdmin() || isReadyStatus(o.pickupStatus)) return '';
+  if (!isAdmin() || !o.done) return '';
   if (iconOnly) return iconActionBtn({ kind: 'warn', act: 'revert', v: o.orderReference, icon: 'undo', title: 'Batalkan Status Selesai' });
   return '<button class="btn btn-block btn-warn-outline" style="margin-top:8px" data-act="revert" data-v="' + esc(o.orderReference) + '">' + ic('undo', 'sm') + ' Batalkan Status Selesai</button>';
 }
+function completeLabel_(o) { return (isDeliveryOrder(o) ? 'Complete Delivery' : 'Complete Pickup') + (o.partial ? ' (' + (o.total - o.done) + ' item tersisa)' : ''); }
 function completeBtn(o, iconOnly) {
-  if (!isReadyStatus(o.pickupStatus)) return '';
-  var delivery = isDeliveryOrder(o);
-  var label = delivery ? 'Complete Delivery' : 'Complete Pickup';
+  if (o.complete) return '';
+  var label = completeLabel_(o);
   if (iconOnly) return iconActionBtn({ kind: 'complete', act: 'complete', v: o.orderReference, icon: 'check', title: label });
   return '<button class="btn btn-block btn-primary" style="margin-top:8px" data-act="complete" data-v="' + esc(o.orderReference) + '">' + ic('check', 'sm') + ' ' + label + '</button>';
 }
+function progChip_(o) { return '<span class="pg ' + (o.complete ? 'pg-full' : o.done ? 'pg-part' : 'pg-none') + '" title="' + o.done + ' dari ' + o.total + ' item selesai"><b>' + o.done + '</b>/' + o.total + '</span>'; }
 
 function renderOrders(keepScroll) {
   var tbody = $('ordersTableBody'), list = $('ordersCardList'), empty = $('ordersEmptyState'), pager = $('ordersPager');
 
   if (!STATE.orders) { // skeleton (hanya saat benar-benar belum ada data)
-    var sk = ''; for (var i = 0; i < 6; i++) sk += '<tr><td colspan="10"><span class="sk" style="height:16px"></span></td></tr>';
+    var sk = ''; for (var i = 0; i < 6; i++) sk += '<tr><td colspan="12"><span class="sk" style="height:16px"></span></td></tr>';
     tbody.innerHTML = sk;
     list.innerHTML = '<div class="sk" style="height:112px;border-radius:16px"></div><div class="sk" style="height:112px;border-radius:16px;margin-top:8px"></div><div class="sk" style="height:112px;border-radius:16px;margin-top:8px"></div>';
     empty.classList.add('hidden'); pager.classList.add('hidden');
@@ -1399,7 +1599,8 @@ function renderOrders(keepScroll) {
   if (STATE.pageNo < 1) STATE.pageNo = 1;
   var start = (STATE.pageNo - 1) * PAGE_SIZE;
   var rows = all.slice(start, start + PAGE_SIZE);
-  $('ordersCount').textContent = all.length + ' order';
+  var nItem = 0; all.forEach(function (g) { nItem += g.total; });
+  $('ordersCount').textContent = all.length + ' order \u00b7 ' + nItem + ' item';
 
   if (!all.length) {
     tbody.innerHTML = ''; list.innerHTML = '';
@@ -1411,18 +1612,25 @@ function renderOrders(keepScroll) {
   }
   empty.classList.add('hidden');
 
+  var dash = '<span class="muted-dash">-</span>';
   tbody.innerHTML = rows.map(function (o) {
-    return '<tr>' +
+    var L = function (cls, inner, tt) { return '<div class="il ' + cls + '"' + (tt ? ' title="' + esc(tt) + '"' : '') + '>' + inner + '</div>'; };
+    var hamp = o.items.map(function (x) { return L(isDoneStatus_(x.pickupStatus) ? 'dn' : 'op', '<span class="il-t">' + esc(x.hamperName || '-') + '</span>', x.hamperName); }).join('');
+    var qty = o.items.map(function (x) { return L('', '<span class="qty-pill">' + esc(x.qty) + '</span>'); }).join('');
+    var jad = o.items.map(function (x) { return L('', fmtDate(x.deliveryDate) ? esc(fmtDate(x.deliveryDate)) : dash); }).join('');
+    var sel = o.items.map(function (x) { return L('il-col', (fmtDate(x.actualDate) ? '<span>' + esc(fmtDate(x.actualDate)) + '</span>' : dash) + (schedBadge_(x) ? schedBadge_(x) : '')); }).join('');
+    return '<tr class="og">' +
       '<td><span class="mono">' + esc(o.orderReference) + '</span></td>' +
+      '<td class="nw">' + progChip_(o) + '</td>' +
       '<td><div class="cell-main">' + esc(o.customer) + '</div><div class="cell-sub">' + esc(o.phone) + '</div></td>' +
       '<td>' + esc(o.outletName) + '</td>' +
       '<td>' + esc(o.area) + '</td>' +
-      '<td class="hn" title="' + esc(o.hamperName) + '">' + esc(o.hamperName) + '</td>' +
-      '<td class="nw"><span class="qty-pill">' + esc(o.qty) + '</span></td>' +
+      '<td class="hn it-col">' + hamp + '</td>' +
+      '<td class="nw it-col">' + qty + '</td>' +
       '<td class="nw">' + typeChip(o.deliveryType) + '</td>' +
-      '<td class="nw">' + (fmtDate(o.deliveryDate) ? esc(fmtDate(o.deliveryDate)) : '<span class="muted-dash">-</span>') + '</td>' +
-      '<td class="nw">' + (fmtDate(o.actualDate) ? esc(fmtDate(o.actualDate)) : '<span class="muted-dash">-</span>') + (schedBadge_(o) ? '<div>' + schedBadge_(o) + '</div>' : '') + '</td>' +
-      '<td>' + statusBadge(o.pickupStatus) + '</td>' +
+      '<td class="nw it-col">' + jad + '</td>' +
+      '<td class="nw it-col">' + sel + '</td>' +
+      '<td>' + statusBadge(o.badgeKey) + '</td>' +
       '<td><div class="row-actions">' + iconActionBtn({ kind: 'view', act: 'detail', v: o.orderReference, icon: 'eye', title: 'View Detail' }) + completeBtn(o, true) + revertBtn(o, true) + '</div></td>' +
       '</tr>';
   }).join('');
@@ -1430,17 +1638,22 @@ function renderOrders(keepScroll) {
   list.innerHTML = rows.map(function (o) {
     var viewBtn = iconActionBtn({ kind: 'view', act: 'detail', v: o.orderReference, icon: 'eye', title: 'View Detail' });
     function cell(l, v, wide) { return '<div class="oc-cell' + (wide ? ' oc-wide' : '') + '"><small>' + l + '</small><b>' + esc(v == null || v === '' ? '-' : v) + '</b></div>'; }
+    var items = '<div class="oc-items">' + o.items.map(function (x) {
+      var d = isDoneStatus_(x.pickupStatus);
+      return '<div class="oc-it ' + (d ? 'dn' : 'op') + '"><span class="oc-it-ic">' + ic(d ? 'check' : 'package', 'sm') + '</span>' +
+        '<span class="oc-it-n">' + esc(x.hamperName || '-') + '</span><b class="oc-it-q">' + esc(x.qty) + '<small>pcs</small></b>' +
+        '<span class="oc-it-s">' + (d ? 'Selesai ' + esc(fmtDate(x.actualDate) || '') : 'Menunggu') + '</span></div>';
+    }).join('') + '</div>';
     return '<div class="order-card oc-compact">' +
-      '<div class="order-card-top"><span class="mono">' + esc(o.orderReference) + '</span>' + statusBadge(o.pickupStatus) + '</div>' +
-      '<div class="oc-title"><h4>' + esc(o.customer) + '</h4><div class="oc-actions">' + viewBtn + completeBtn(o, true) + revertBtn(o, true) + '</div></div>' +
-      '<div class="oc-grid">' + cell('Store', o.outletName, true) + cell('Hampers', o.hamperName, true) +
-      cell('Tipe', o.deliveryType) + cell('Qty', o.qty) + cell('Tgl Permintaan', fmtDate(o.deliveryDate)) + cell('Tgl Aktual', fmtDate(o.actualDate)) + '</div>' + (schedBadge_(o) ? '<div class="oc-sched">' + schedBadge_(o) + '</div>' : '') +
+      '<div class="order-card-top"><span class="mono">' + esc(o.orderReference) + '</span>' + progChip_(o) + statusBadge(o.badgeKey) + '</div>' +
+      '<div class="oc-title"><h4>' + esc(o.customer) + '</h4><div class="oc-actions">' + viewBtn + completeBtn(o, true) + revertBtn(o, true) + '</div></div>' + items +
+      '<div class="oc-grid">' + cell('Store', o.outletName, true) + cell('Tipe', o.deliveryType) + cell('Total Qty', o.qty) + cell('Jadwal Diminta', fmtDate(o.deliveryDate), true) + '</div>' + (schedBadge_(o) ? '<div class="oc-sched">' + schedBadge_(o) + '</div>' : '') +
       '</div>';
   }).join('');
 
   pager.classList.toggle('hidden', all.length <= 25 && PAGE_SIZE === 25);
   $('orderPageSize').value = String(PAGE_SIZE);
-  $('pagerInfo').textContent = (start + 1) + '–' + (start + rows.length) + ' / ' + all.length;
+  $('pagerInfo').textContent = (start + 1) + '\u2013' + (start + rows.length) + ' / ' + all.length;
   $('orderPages').innerHTML = pagerNumsHtml_(STATE.pageNo, pages);
   $('prevPageBtn').disabled = STATE.pageNo <= 1;
   $('nextPageBtn').disabled = STATE.pageNo >= pages;
@@ -1458,9 +1671,9 @@ function findOrder(ref) {
 }
 
 function openOrderDetail(ref) {
-  var o = findOrder(ref);
-  if (!o) { showToast('Order tidak ditemukan.', 'error'); return; }
-  renderOrderDetail(o);
+  var g = findGroup_(ref);
+  if (!g) { showToast('Order tidak ditemukan.', 'error'); return; }
+  renderOrderDetail(g);
   openModal('modalOrderDetail');
 }
 
@@ -1469,14 +1682,27 @@ function dsub(label, val, html) {
   return '<div class="dcell"><div class="dlabel">' + label + '</div><div class="dvalue">' + v + '</div></div>';
 }
 function renderOrderDetail(o) {
-  var done = !isReadyStatus(o.pickupStatus), delivery = isDeliveryOrder(o);
+  var done = o.complete, delivery = isDeliveryOrder(o);
   var typeIcon = delivery ? 'truck' : 'package';
   var s1 = delivery ? 'Siap Dikirim' : 'Siap Diambil', s2 = delivery ? 'Terkirim' : 'Terambil';
+  var pct = Math.round(o.done / o.total * 100);
+  var itemsHtml = o.items.map(function (x) {
+    var d = isDoneStatus_(x.pickupStatus);
+    var st = d ? '<span class="its its-ok">' + ic('check', 'sm') + ' ' + (delivery ? 'Terkirim' : 'Terambil') + ' &middot; ' + esc(fmtDate(x.actualDate) || '-') + '</span>' : '<span class="its its-wait">Menunggu</span>';
+    return '<div class="od-it ' + (d ? 'is-done' : 'is-open') + '">' +
+      '<div class="od-it-main"><div class="od-it-name">' + esc(x.hamperName || '-') + '</div>' +
+      '<div class="od-it-meta">Jadwal diminta ' + esc(fmtDate(x.deliveryDate) || '-') + '</div></div>' +
+      '<span class="od-it-qty">' + esc(x.qty) + '<small>pcs</small></span>' +
+      '<div class="od-it-st">' + st + (schedBadge_(x) || '') + (d && isAdmin() ? '<button type="button" class="od-it-undo" data-act="revert-item" data-v="' + esc(x.row) + '" title="Batalkan item ini">' + ic('undo', 'sm') + ' Batalkan</button>' : '') + '</div></div>';
+  }).join('');
   $('orderDetailBody').innerHTML =
     '<div class="od-hero"><div class="detail-ico">' + ic('file', 'lg') + '</div>' +
     '<div class="od-hero-main"><div class="od-ref">' + esc(o.orderReference) + '</div>' +
     '<div class="od-meta">' + esc(o.customer || '-') + ' &middot; ' + esc(o.outletName || '-') + '</div></div>' +
-    statusBadge(o.pickupStatus) + '</div>' +
+    statusBadge(o.badgeKey) + '</div>' +
+
+    '<div class="od-prog ' + (done ? 'full' : o.done ? 'part' : '') + '"><div class="od-prog-t"><span>Progres ' + (delivery ? 'pengiriman' : 'pengambilan') + '</span><b>' + o.done + '/' + o.total + ' item</b></div>' +
+    '<div class="od-prog-bar"><i style="width:' + pct + '%"></i></div></div>' +
 
     '<div class="od-steps ' + (done ? 'is-done' : 'is-ready') + '">' +
       '<div class="od-step on"><span>' + ic('check', 'sm') + '</span><b>Order Masuk</b></div><i class="od-line on"></i>' +
@@ -1485,29 +1711,28 @@ function renderOrderDetail(o) {
     '</div>' +
 
     '<div class="od-stats">' +
-      '<div class="od-stat"><small>Qty</small><b>' + esc(o.qty) + '</b></div>' +
+      '<div class="od-stat"><small>Total Qty</small><b>' + esc(o.qty) + '</b></div>' +
       '<div class="od-stat"><small>Revenue</small><b>' + esc(fmtCurrency(o.revenue)) + '</b></div>' +
-      '<div class="od-stat"><small>Tgl Permintaan</small><b>' + esc(fmtDate(o.deliveryDate) || '-') + '</b></div>' +
+      '<div class="od-stat"><small>' + (done ? 'Jadwal Diminta' : 'Jadwal Terdekat') + '</small><b>' + esc(fmtDate(o.deliveryDate) || '-') + '</b></div>' +
     '</div>' +
-    '<div class="od-sched"><span><small>Tgl Aktual ' + (isDeliveryOrder(o) ? 'Pengiriman' : 'Pengambilan') + '</small><b>' + esc(fmtDate(o.actualDate) || 'Belum selesai') + '</b></span>' + schedBadge_(o) + '</div>' +
+    '<div class="od-sched"><span><small>Tgl Selesai (' + (delivery ? 'dikirim' : 'diambil') + ')</small><b>' + esc(done ? (fmtDate(o.actualDate) || '-') : (o.partial ? 'Sebagian \u00b7 ' + o.done + ' dari ' + o.total + ' item' : 'Belum selesai')) + '</b></span>' + schedBadge_(o) + '</div>' +
 
     '<div class="od-grid">' +
       '<div class="od-box"><div class="od-box-title">' + ic('users', 'sm') + ' Customer</div>' +
         dsub('Nama', o.customer) + dsub('Phone', o.phone) + '</div>' +
       '<div class="od-box"><div class="od-box-title">' + ic('store', 'sm') + ' Lokasi</div>' +
         dsub('Store', o.outletName) + dsub('Area', o.area) + '</div>' +
-      '<div class="od-box od-full"><div class="od-box-title">' + ic('package', 'sm') + ' Pesanan</div>' +
-        dsub('Hampers', o.hamperName) + '<div class="od-two">' + dsub('Tipe', o.deliveryType) + dsub('Order Number', o.orderReference) + '</div></div>' +
-      proofBoxHtml_(o) +
+      '<div class="od-box od-full"><div class="od-box-title">' + ic('package', 'sm') + ' Pesanan <em class="od-cnt">' + o.total + ' item</em></div>' +
+        '<div class="od-items">' + itemsHtml + '</div>' +
+        '<div class="od-two">' + dsub('Tipe', o.deliveryType) + dsub('Order Number', o.orderReference) + '</div></div>' +
       '<div class="od-box od-full od-log"><div class="od-box-title">' + ic('clock', 'sm') + ' Riwayat Update</div>' +
         '<div id="odTimeline" class="od-tl"><div class="od-tl-empty">Memuat riwayat...</div></div></div>' +
     '</div>';
   loadOrderTimeline_(o);
 
   var f = $('orderDetailFooter');
-  if (isReadyStatus(o.pickupStatus)) {
-    var lbl = isDeliveryOrder(o) ? 'Complete Delivery' : 'Complete Pickup';
-    f.innerHTML = '<button class="btn btn-secondary" data-close>Close</button><button class="btn btn-primary" id="markCompleteBtn">' + ic('check', 'sm') + ' ' + lbl + '</button>';
+  if (!done) {
+    f.innerHTML = '<button class="btn btn-secondary" data-close>Close</button><button class="btn btn-primary" id="markCompleteBtn">' + ic('check', 'sm') + ' ' + completeLabel_(o) + '</button>';
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
     $('markCompleteBtn').addEventListener('click', function () { askComplete(o); });
   } else {
@@ -1530,20 +1755,53 @@ function loadOrderTimeline_(o) {
       o.updatedBy = rows[0].updatedBy;
       var c = $('odUpBy'); if (c) c.innerHTML = dsub('Updated By', o.updatedBy);
     }
-    box.innerHTML = rows.map(function (r) {
-      var rev = /^REVERT/.test(r.notes || '');
-      var parts = String(r.notes || '').split(' | '), reason = '', extra = [];
-      parts.forEach(function (p) {
-        if (/^Alasan:/.test(p)) reason = p.replace(/^Alasan:\s*/, '');
-        else if (/^(Tgl Kirim sebelumnya|Diselesaikan oleh|Bukti sebelumnya):/.test(p)) extra.push(p);
+    /* 1) parse tiap baris log -> entri terstruktur (nama item, qty, alasan, bukti, dll) */
+    var fmtD = function (v) { var m = String(v || '').match(/^(\d{4})[\/-](\d{2})[\/-](\d{2})/); return m ? m[3] + '-' + m[2] + '-' + m[1] : String(v || ''); };
+    var entries = rows.map(function (r) {
+      var notes = String(r.notes || ''), rev = /^REVERT/.test(notes);
+      var e = { rev: rev, at: r.updatedAt, by: r.updatedBy, prev: r.previousStatus, next: r.newStatus, reason: '', prevDate: '', doneBy: '', proof: null, item: null, rest: [] };
+      notes.split(' | ').forEach(function (p) {
+        var m;
+        if ((m = p.match(/^Bukti( sebelumnya)?:\s*(Foto|Resi)\s*(.*)$/))) { e.proof = { type: m[2], val: (m[3] || '').trim(), prev: !!m[1] }; return; }
+        if ((m = p.match(/^Item:\s*(.*?)\s+x(\d+)\s*$/))) { e.item = { name: m[1], qty: m[2] }; return; }
+        if (/^Alasan:/.test(p)) { e.reason = p.replace(/^Alasan:\s*/, ''); return; }
+        if ((m = p.match(/^Tgl Kirim sebelumnya:\s*(.*)$/))) { e.prevDate = m[1] === '-' ? '' : fmtD(m[1]); return; }
+        if ((m = p.match(/^Diselesaikan oleh:\s*(.*)$/))) { e.doneBy = m[1] === '-' ? '' : m[1]; return; }
+        if (/^REVERT/.test(p)) return;
+        if (p.trim()) e.rest.push(p.trim());
       });
-      if (!rev && r.notes) reason = r.notes;
+      if (!rev && e.rest.length) e.reason = e.rest.join(' | ');
+      return e;
+    });
+    /* 2) gabungkan log yang sama (satu aksi untuk beberapa item) jadi satu kartu */
+    var groups = [], idx = {};
+    entries.forEach(function (e) {
+      var k = [e.rev, e.at, e.by, e.prev, e.next, e.reason, e.proof ? e.proof.type + e.proof.val : '', e.prevDate, e.doneBy].join('\u0001');
+      if (idx[k] === undefined) { idx[k] = groups.length; groups.push({ e: e, items: [] }); }
+      if (e.item) groups[idx[k]].items.push(e.item);
+    });
+    /* 3) render */
+    box.innerHTML = groups.map(function (g) {
+      var e = g.e, rev = e.rev, proof = e.proof, pbox = '';
+      if (proof && proof.type === 'Foto' && proof.val) {
+        var th = proofThumb_(proof.val, 400);
+        pbox = '<button type="button" class="od-tl-proof" data-act="proof-view" data-v="' + esc(proof.val) + '" title="Klik untuk melihat foto">' + (th ? '<img src="' + esc(th) + '" alt="Foto bukti" loading="lazy" onerror="this.style.display=\'none\'">' : '') + '<span class="otp-txt"><b>' + ic('image', 'sm') + (proof.prev ? ' Lihat bukti sebelumnya' : ' Lihat bukti penerimaan') + '</b><small>Klik untuk melihat foto</small></span></button>';
+      } else if (proof && proof.type === 'Resi' && proof.val) {
+        pbox = '<div class="od-tl-meta"><span>' + (proof.prev ? 'Resi sebelumnya' : 'Resi') + '</span><b class="mono">' + esc(proof.val) + '</b></div>';
+      } else if (proof && proof.type === 'Foto') { pbox = '<div class="od-tl-extra">Foto bukti (link tidak tersimpan)</div>'; }
+      var chips = g.items.length ? '<div class="od-tl-items">' + g.items.map(function (it) {
+        return '<span class="od-tl-it"><i>' + ic('layers', 'sm') + '</i><span class="nm">' + esc(it.name) + '</span><b>&times;' + esc(it.qty) + '</b></span>';
+      }).join('') + '</div>' : '';
+      var meta = (e.prevDate ? '<div class="od-tl-meta"><span>Tgl kirim sebelumnya</span><b>' + esc(e.prevDate) + '</b></div>' : '') +
+                 (e.doneBy ? '<div class="od-tl-meta"><span>Diselesaikan oleh</span><b>' + esc(e.doneBy) + '</b></div>' : '');
+      var cnt = g.items.length > 1 ? '<em class="od-tl-cnt">' + g.items.length + ' item</em>' : '';
       return '<div class="od-tl-item ' + (rev ? 'is-rev' : 'is-ok') + '"><span class="od-tl-dot">' + ic(rev ? 'undo' : 'check', 'sm') + '</span>' +
-        '<div class="od-tl-body"><div class="od-tl-top"><b>' + (rev ? 'Status dibatalkan' : 'Order diselesaikan') + '</b><small>' + esc(fmtDate(r.updatedAt)) + '</small></div>' +
-        '<div class="od-tl-flow">' + statusBadge(r.previousStatus) + '<span class="od-tl-arrow">&rarr;</span>' + statusBadge(r.newStatus) + '</div>' +
-        '<div class="od-tl-by">oleh <b>' + esc(r.updatedBy || '-') + '</b></div>' +
-        (reason ? '<div class="od-tl-note">' + (rev ? 'Alasan: ' : '') + esc(reason) + '</div>' : '') +
-        (extra.length ? '<div class="od-tl-extra">' + esc(extra.join(' · ')) + '</div>' : '') + '</div></div>';
+        '<div class="od-tl-body"><div class="od-tl-top"><b>' + (rev ? 'Status dibatalkan' : 'Order diselesaikan') + cnt + '</b><small>' + esc(fmtDate(e.at)) + '</small></div>' +
+        chips +
+        '<div class="od-tl-flow">' + statusBadge(e.prev) + '<span class="od-tl-arrow">&rarr;</span>' + statusBadge(e.next) + '</div>' +
+        '<div class="od-tl-by">oleh <b>' + esc(e.by || '-') + '</b></div>' +
+        (e.reason ? '<div class="od-tl-note">' + (rev ? '<span class="od-tl-nl">Alasan</span>' : '') + esc(e.reason) + '</div>' : '') +
+        (meta ? '<div class="od-tl-metas">' + meta + '</div>' : '') + pbox + '</div></div>';
     }).join('');
   }, function () { var b = $('odTimeline'); if (b) b.innerHTML = '<div class="od-tl-empty">Gagal memuat riwayat.</div>'; });
 }
@@ -1554,19 +1812,47 @@ function proofThumb_(url, sz) {
   var m = String(url || '').match(/\/d\/([\w-]+)/);
   return m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w' + (sz || 800) : '';
 }
+function selRows_() { return Array.prototype.map.call(document.querySelectorAll('#proofOrder .pf-it input:checked'), function (i) { return Number(i.value); }); }
+function pfSync_() {
+  var inputs = document.querySelectorAll('#proofOrder .pf-it input'), n = 0;
+  Array.prototype.forEach.call(inputs, function (i) { i.closest('.pf-it').classList.toggle('on', i.checked); if (i.checked) n++; });
+  var c = $('pfCount'); if (c) c.innerHTML = '<b>' + n + '</b> dari ' + inputs.length + ' item dipilih';
+  var a = $('pfAllBtn'); if (a) a.textContent = n === inputs.length ? 'Kosongkan' : 'Pilih semua';
+  if (PROOF && PROOF.o) $('proofSubmitBtn').innerHTML = ic('check', 'sm') + ' ' + (PROOF.delivery ? 'Complete Delivery' : 'Complete Pickup') + (inputs.length > 1 && n ? ' &middot; ' + n + ' item' : '');
+  syncProofBtn_();
+}
+function pfAll_() {
+  var inputs = document.querySelectorAll('#proofOrder .pf-it input'), all = Array.prototype.every.call(inputs, function (i) { return i.checked; });
+  Array.prototype.forEach.call(inputs, function (i) { i.checked = !all; });
+  pfSync_();
+}
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.closest && e.target.closest('#proofOrder .pf-it')) pfSync_();
+  if (e.target && e.target.closest && e.target.closest('#revertMsg .rv-it')) { Array.prototype.forEach.call(document.querySelectorAll('#revertMsg .rv-it'), function (l) { l.classList.toggle('on', l.querySelector('input').checked); }); syncRevertBtn(); }
+});
 function askComplete(o) {
   var delivery = isDeliveryOrder(o);
   PROOF = { o: o, ref: o.orderReference, delivery: delivery, mode: delivery ? 'resi' : 'photo', photo: '', busy: false };
   $('proofTitle').textContent = delivery ? 'Bukti Penerimaan' : 'Bukti Pengambilan';
-  $('proofSub').textContent = delivery ? 'Isi nomor resi atau lampirkan foto pesanan' : 'Lampirkan foto pesanan yang diambil customer';
-  $('proofOrder').innerHTML = '<div class="pf-oref">' + ic(delivery ? 'truck' : 'package', 'sm') + '<b>' + esc(o.orderReference) + '</b>' + typeChip(o.deliveryType) + '</div>' +
-    '<div class="pf-ometa">' + esc(o.customer || '-') + ' &middot; ' + esc(o.hamperName || '-') + ' &middot; ' + esc(o.qty) + ' pcs</div>';
+  $('proofSub').textContent = delivery ? 'Pilih item yang dikirim, lalu isi resi atau foto' : 'Pilih item yang diambil, lalu lampirkan foto';
+  var open = o.items.filter(function (x) { return !isDoneStatus_(x.pickupStatus); });
+  var doneIt = o.items.filter(function (x) { return isDoneStatus_(x.pickupStatus); });
+  var list = open.map(function (x) {
+    return '<label class="pf-it on"><input type="checkbox" value="' + esc(x.row) + '" checked><span class="pf-ck">' + ic('check', 'sm') + '</span>' +
+      '<span class="pf-nm">' + esc(x.hamperName || '-') + '</span><b class="pf-q">' + esc(x.qty) + '<small>pcs</small></b></label>';
+  }).join('') + doneIt.map(function (x) {
+    return '<div class="pf-it is-done"><span class="pf-ck">' + ic('check', 'sm') + '</span><span class="pf-nm">' + esc(x.hamperName || '-') + '</span><b class="pf-q">' + esc(x.qty) + '<small>pcs</small></b><em>Selesai ' + esc(fmtDate(x.actualDate) || '') + '</em></div>';
+  }).join('');
+  $('proofOrder').innerHTML = '<div class="pf-oref">' + ic(delivery ? 'truck' : 'package', 'sm') + '<b>' + esc(o.orderReference) + '</b>' + typeChip(o.deliveryType) + progChip_(o) + '</div>' +
+    '<div class="pf-ometa">' + esc(o.customer || '-') + ' &middot; ' + esc(o.outletName || '-') + '</div>' +
+    '<div class="pf-ih"><span>' + (open.length > 1 ? 'Pilih item' : 'Item') + '</span>' + (open.length > 1 ? '<button type="button" class="pf-all" id="pfAllBtn" data-act="pf-all">Kosongkan</button>' : '') + '</div>' +
+    '<div class="pf-items">' + list + '</div><div class="pf-count" id="pfCount"></div>';
   $('proofTabs').classList.toggle('hidden', !delivery);
   $('proofResi').value = '';
   $('proofCam').value = ''; $('proofGal').value = '';
   setProofPhoto_('');
-  $('proofSubmitBtn').innerHTML = ic('check', 'sm') + ' ' + (delivery ? 'Complete Delivery' : 'Complete Pickup');
   setProofMode_(PROOF.mode);
+  pfSync_();
   openModal('modalProof');
 }
 function setProofMode_(m) {
@@ -1587,7 +1873,7 @@ function setProofPhoto_(dataUrl, meta) {
   syncProofBtn_();
 }
 function syncProofBtn_() {
-  var ok = PROOF.mode === 'resi' ? $('proofResi').value.trim().length >= 4 : !!PROOF.photo;
+  var ok = (PROOF.mode === 'resi' ? $('proofResi').value.trim().length >= 4 : !!PROOF.photo) && selRows_().length > 0;
   $('proofSubmitBtn').disabled = !ok || PROOF.busy;
 }
 // Kecilkan foto (maks 1280px, JPEG) agar upload cepat & hemat kuota
@@ -1630,9 +1916,10 @@ function submitProof_() {
     if (!PROOF.photo) { showToast('Foto bukti wajib dilampirkan.', 'warning'); return; }
     proof = { type: 'PHOTO', photo: PROOF.photo };
   }
-  var ref = PROOF.ref;
+  var ref = PROOF.ref, rows = selRows_();
+  if (!rows.length) { showToast('Pilih minimal 1 item.', 'warning'); return; }
   closeModal('modalProof');
-  completeOrder(ref, proof);
+  completeOrder(ref, proof, rows);
 }
 function copyText_(text, okMsg) {
   var done = function () { showToast(okMsg || 'Disalin', 'success'); };
@@ -1646,7 +1933,8 @@ function copyFallback_(text, done) {
   t.remove();
 }
 function openProofPhoto_(ref) {
-  var o = findOrder(ref); if (!o || !o.proofValue) return;
+  var isUrl = /^https?:\/\//i.test(String(ref || ''));   // dari Riwayat: link foto langsung
+  var o = isUrl ? { proofValue: ref } : findOrder(ref); if (!o || !o.proofValue) return;
   var img = $('photoViewImg'), err = $('photoViewErr');
   err.classList.add('hidden'); img.classList.remove('hidden');
   img.onerror = function () { img.classList.add('hidden'); err.classList.remove('hidden'); };
@@ -1654,42 +1942,52 @@ function openProofPhoto_(ref) {
   $('photoViewOpen').href = o.proofValue;
   openModal('modalPhoto');
 }
-function proofBoxHtml_(o) {
-  if (isReadyStatus(o.pickupStatus)) return '';
-  var delivery = isDeliveryOrder(o), t = o.proofType, v = o.proofValue, body;
-  if (t === 'RESI' && v) {
-    body = '<div class="pf-resi"><div><small>Nomor Resi</small><b class="mono">' + esc(v) + '</b></div>' +
-      '<button type="button" class="btn btn-sm btn-secondary" data-act="copy-resi" data-v="' + esc(v) + '">' + ic('copy', 'sm') + ' Salin</button></div>';
-  } else if (t === 'PHOTO' && v) {
-    var th = proofThumb_(v, 600);
-    body = '<button type="button" class="pf-thumb" data-act="proof-view" data-v="' + esc(o.orderReference) + '" title="Lihat foto">' +
-      (th ? '<img src="' + esc(th) + '" alt="Foto bukti" loading="lazy" onerror="this.parentNode.classList.add(\'is-err\')">' : '') +
-      '<span class="pf-thumb-ph">' + ic('image', 'lg') + '<em>Lihat foto bukti</em></span></button>';
-  } else {
-    body = '<div class="od-tl-empty">Tidak ada bukti (order diselesaikan sebelum fitur bukti tersedia).</div>';
-  }
-  return '<div class="od-box od-full"><div class="od-box-title">' + ic('camera', 'sm') + ' ' + (delivery ? 'Bukti Penerimaan' : 'Bukti Pengambilan') + '</div>' + body + '</div>';
+function proofBoxHtml_(g) {
+  var done = g.items.filter(function (x) { return isDoneStatus_(x.pickupStatus); });
+  if (!done.length) return '';
+  var delivery = isDeliveryOrder(g), map = {}, order = [];
+  done.forEach(function (x) {
+    var k = (x.proofType || '') + '|' + (x.proofValue || '') + '|' + dkey_(x.actualDate);
+    if (!map[k]) { map[k] = []; order.push(k); }
+    map[k].push(x);
+  });
+  var cards = order.map(function (k) {
+    var b = map[k], f = b[0], t = f.proofType, v = f.proofValue, body;
+    if (t === 'RESI' && v) {
+      body = '<div class="pf-resi"><div><small>Nomor Resi</small><b class="mono">' + esc(v) + '</b></div>' +
+        '<button type="button" class="btn btn-sm btn-secondary" data-act="copy-resi" data-v="' + esc(v) + '">' + ic('copy', 'sm') + ' Salin</button></div>';
+    } else if (t === 'PHOTO' && v) {
+      var th = proofThumb_(v, 600);
+      body = '<button type="button" class="pf-thumb" data-act="proof-view" data-v="' + esc(v) + '" title="Lihat foto">' +
+        (th ? '<img src="' + esc(th) + '" alt="Foto bukti" loading="lazy" onerror="this.parentNode.classList.add(\'is-err\')">' : '') +
+        '<span class="pf-thumb-ph">' + ic('image', 'lg') + '<em>Lihat foto bukti</em></span></button>';
+    } else {
+      body = '<div class="od-tl-empty">Tidak ada bukti (diselesaikan sebelum fitur bukti tersedia).</div>';
+    }
+    return '<div class="pf-grp"><div class="pf-gh"><b>' + (delivery ? 'Dikirim ' : 'Diambil ') + esc(fmtDate(f.actualDate) || '-') + '</b><span>' +
+      b.map(function (x) { return '<i class="pf-chip">' + itemMeta_(x) + '</i>'; }).join('') + '</span></div>' + body + '</div>';
+  }).join('');
+  return '<div class="od-box od-full"><div class="od-box-title">' + ic('camera', 'sm') + ' ' + (delivery ? 'Bukti Penerimaan' : 'Bukti Pengambilan') + '</div>' + cards + '</div>';
 }
 
-function completeOrder(ref, proof) {
+function completeOrder(ref, proof, rows) {
   runAction({
     processing: proof && proof.type === 'PHOTO' ? 'Mengunggah foto & memproses...' : 'Memproses order...',
-    call: 'updateOrderStatus', args: [STATE.token, ref, '', proof],
-    okMsg: 'Order berhasil diselesaikan',
+    call: 'updateOrderStatus', args: [STATE.token, ref, '', proof, rows || []],
+    okMsg: 'Item berhasil diselesaikan',
     errMsg: 'Gagal memperbarui order.',
     onOk: function (res) {
-      // Update cache lokal -> list & dashboard langsung berubah (tanpa reload)
-      var o = findOrder(ref);
-      var prev = o ? o.pickupStatus : 'READY_FOR_PICKUP';
-      var ns = res.data.newStatus;
-      if (o) { o.pickupStatus = ns; o.updatedAt = nowStamp(); o.actualDate = nowStamp().slice(0, 10).replace(/-/g, '/'); o.updatedBy = STATE.user.name || STATE.user.username; o.proofType = res.data.proofType || ''; o.proofValue = res.data.proofValue || ''; }
-      if (STATE.stats) {
-        if (prev === 'READY_FOR_PICKUP') STATE.stats.readyForPickup = Math.max(0, STATE.stats.readyForPickup - 1);
-        if (prev === 'READY_FOR_DELIVERY') STATE.stats.readyForDelivery = Math.max(0, STATE.stats.readyForDelivery - 1);
-        if (ns === 'COMPLETED_PICKUP') STATE.stats.completedPickup++;
-        if (ns === 'COMPLETED_DELIVERY') STATE.stats.completedDelivery++;
-      }
-      renderOrders(); renderDashboard_safe(); updateBell(); if (STATE.page === 'recap') renderRecap();
+      // Update cache lokal per item -> list, dashboard & kalender langsung berubah (tanpa reload)
+      var had = (STATE.orders || []).filter(function (o) { return String(o.orderReference) === String(ref); });
+      var before = had.length ? groupOrders_(had)[0] : null;
+      var doneRows = (res.data.items || []).map(function (i) { return Number(i.row); });
+      had.forEach(function (o) {
+        if (doneRows.indexOf(Number(o.row)) === -1) return;
+        o.pickupStatus = res.data.newStatus; o.updatedAt = nowStamp(); o.actualDate = nowStamp().slice(0, 10).replace(/-/g, '/');
+        o.updatedBy = STATE.user.name || STATE.user.username; o.proofType = res.data.proofType || ''; o.proofValue = res.data.proofValue || '';
+      });
+      if (before) { statDelta_(before, -1); statDelta_(groupOrders_(had)[0], 1); }
+      renderOrders(); renderDashboard_safe(); updateBell(); if (STATE.page === 'calendar') renderCalendar(); if (STATE.page === 'recap') renderRecap();
     },
     after: function () {
       closeAllModals();
@@ -1700,8 +1998,20 @@ function completeOrder(ref, proof) {
 
 /* ============== REKAP PER HAMPER (daftar yang harus disiapkan) ============== */
 var RECAP = { group: 'store', data: null };
+function recapFill_() {
+  var vis = scopeVis_();
+  [['recapStore', 'outletName', 'Semua Store', vis.store], ['recapArea', 'area', 'Semua Area', vis.area]].forEach(function (c) {
+    var el = $(c[0]); if (!el) return;
+    var cur = el.value, names = {}; (STATE.orders || []).forEach(function (o) { if (o[c[1]]) names[o[c[1]]] = 1; });
+    var ks = Object.keys(names).sort(function (a, b) { return a.localeCompare(b, 'id', { numeric: true }); });
+    el.innerHTML = '<option value="">' + c[2] + '</option>' + ks.map(function (k) { return '<option value="' + esc(k) + '">' + esc(k) + '</option>'; }).join('');
+    el.value = names[cur] ? cur : '';
+    el.classList.toggle('hidden', !c[3]);
+    if (!c[3]) el.value = '';
+  });
+}
 function recapDot_() {
-  var n = 0; if ($('recapSearch').value.trim()) n++; if ($('recapStatus').value !== 'ready') n++; if ($('recapType').value) n++;
+  var n = 0; if ($('recapSearch').value.trim()) n++; if ($('recapStatus').value !== 'ready') n++; if ($('recapType').value) n++; if ($('recapStore').value) n++; if ($('recapArea').value) n++;
   var d = $('recapDot'); d.textContent = n; d.classList.toggle('hidden', n === 0);
 }
 /* Kamera langsung (getUserMedia); fallback ke input capture bila tidak diizinkan */
@@ -1791,14 +2101,14 @@ function bindProofRecap_() {
   $('proofCam').addEventListener('change', function () { handleProofFile_(this.files && this.files[0]); });
   $('proofGal').addEventListener('change', function () { handleProofFile_(this.files && this.files[0]); });
   $('recapSearch').addEventListener('input', debounce(renderRecap, 150));
-  ['recapStatus', 'recapType'].forEach(function (id) { $(id).addEventListener('change', function () { renderRecap(); recapDot_(); }); });
+  ['recapStatus', 'recapType', 'recapStore', 'recapArea'].forEach(function (id) { $(id).addEventListener('change', function () { renderRecap(); recapDot_(); }); });
   $('recapSearch').addEventListener('input', recapDot_);
   $('recapToggleBtn').addEventListener('click', function () {
     var open = $('recapFilterCard').classList.toggle('filters-open');
     this.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
   $('recapResetBtn').addEventListener('click', function () {
-    $('recapSearch').value = ''; $('recapStatus').value = 'ready'; $('recapType').value = '';
+    $('recapSearch').value = ''; $('recapStatus').value = 'ready'; $('recapType').value = ''; $('recapStore').value = ''; $('recapArea').value = '';
     recapDot_(); renderRecap();
   });
   $('camClose').addEventListener('click', closeCamera_);
@@ -1811,9 +2121,11 @@ function bindProofRecap_() {
 }
 function recapCompute_() {
   var st = $('recapStatus').value, tp = $('recapType').value, q = $('recapSearch').value.trim().toLowerCase();
-  var byArea = RECAP.group === 'area';
+  var sf = $('recapStore').value, af = $('recapArea').value;
   var rows = (STATE.orders || []).filter(function (o) {
     if (st === 'ready' && !isReadyStatus(o.pickupStatus)) return false;
+    if (sf && o.outletName !== sf) return false;
+    if (af && o.area !== af) return false;
     if (tp && (tp === 'Delivery') !== isDeliveryOrder(o)) return false;
     if (q && [o.hamperName, o.outletName, o.area].join(' ').toLowerCase().indexOf(q) === -1) return false;
     return true;
@@ -1825,15 +2137,23 @@ function recapCompute_() {
   }
   rows.forEach(function (o) {
     var qty = Number(o.qty) || 0, hn = String(o.hamperName || '').trim() || '(Tanpa nama hampers)';
-    var key = byArea ? (o.area || '') : (o.outletName || '');
-    var g = groups[key] || (groups[key] = { name: key || (byArea ? 'Tanpa Area' : 'Tanpa Store'), key: key, total: 0, orders: 0, hampers: {}, stores: {} });
+    var key = o.area || '', sk = o.outletName || '';
+    var g = groups[key] || (groups[key] = { name: key || 'Tanpa Area', key: key, total: 0, orders: 0, hampers: {}, stores: {}, storeMap: {} });
     add(g, qty, hn); add(all, qty, hn);
-    if (o.outletName) { g.stores[o.outletName] = 1; stores[o.outletName] = 1; }
+    var sg = g.storeMap[sk] || (g.storeMap[sk] = { name: sk || 'Tanpa Store', key: sk, total: 0, orders: 0, hampers: {} });
+    add(sg, qty, hn);
+    if (sk) { g.stores[sk] = 1; stores[sk] = 1; }
   });
   var nat = function (a, b) { return String(a).localeCompare(String(b), 'id', { numeric: true, sensitivity: 'base' }); };
+  var toList = function (g) { g.list = Object.keys(g.hampers).map(function (k) { return g.hampers[k]; }).sort(function (a, b) { return nat(a.name, b.name); }); };
   var list = Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) { return nat(a.name, b.name); });
-  [all].concat(list).forEach(function (g) { g.list = Object.keys(g.hampers).map(function (k) { return g.hampers[k]; }).sort(function (a, b) { return nat(a.name, b.name); }); });
-  return { rows: rows, groups: list, all: all, orders: rows.length, storeCount: Object.keys(stores).length, byArea: byArea, ready: st === 'ready' };
+  toList(all);
+  list.forEach(function (g) {
+    toList(g);
+    g.storeList = Object.keys(g.storeMap).map(function (k) { return g.storeMap[k]; }).sort(function (a, b) { return nat(a.name, b.name); });
+    g.storeList.forEach(toList);
+  });
+  return { rows: rows, groups: list, all: all, orders: rows.length, storeCount: Object.keys(stores).length, areaCount: list.length, byArea: true, ready: st === 'ready' };
 }
 function renderRecap() {
   var box = $('recapList'); if (!box) return;
@@ -1844,9 +2164,9 @@ function renderRecap() {
     return;
   }
   var isSt = isStoreRole_();
-  if (isSt) RECAP.group = 'store';
-  $('recapGroup').style.display = isSt ? 'none' : '';
-  if ($('recapSub')) $('recapSub').textContent = isSt ? 'Hampers yang perlu disiapkan untuk store Anda' : 'Jumlah yang harus disiapkan, dikelompokkan per store atau area';
+  if ($('recapGroup')) $('recapGroup').style.display = 'none';
+  if ($('recapSub')) $('recapSub').textContent = isSt ? 'Hampers yang perlu disiapkan untuk store Anda' : 'Jumlah yang harus disiapkan, dikelompokkan per area lalu per store';
+  recapFill_();
   var d = RECAP.data = recapCompute_();
   if (isSt) d.all.name = (STATE.user && STATE.user.storeName) || 'Hampers Store Anda';
   $('recapCopyBtn').disabled = !d.orders;
@@ -1856,24 +2176,31 @@ function renderRecap() {
     box.innerHTML = '<div class="card">' + (d.ready ? emptyBlock('check', 'Tidak ada order yang perlu disiapkan', 'Semua order pada tanggal ini sudah siap atau belum ada yang masuk.') : emptyBlock('search', 'Order tidak ditemukan', 'Coba ubah tanggal atau filter store / area.')) + '</div>';
     return;
   }
-  var tile = function (v, l) { return '<div class="rc-tile"><b>' + Number(v).toLocaleString('id-ID') + '</b><span>' + l + '</span></div>'; };
-  $('recapSummary').innerHTML = tile(d.all.total, 'Total pcs') + tile(d.all.list.length, 'Jenis hampers') + tile(d.orders, 'Order') + (isSt ? '' : tile(d.byArea ? d.groups.length : d.storeCount, d.byArea ? 'Area' : 'Store'));
+  var tile = function (v, l, sh) { return '<div class="rc-tile"><b>' + Number(v).toLocaleString('id-ID') + '</b><span><em class="l-long">' + l + '</em><em class="l-short">' + sh + '</em></span></div>'; };
+  $('recapSummary').innerHTML = tile(d.all.total, 'Total pcs', 'Pcs') + tile(d.all.list.length, 'Jenis hampers', 'Jenis') + tile(d.orders, 'Order', 'Order') + (isSt ? '' : tile(d.storeCount, 'Store', 'Store') + tile(d.areaCount, 'Area', 'Area'));
   var baseF = { status: d.ready ? 'READY' : '', deliveryType: $('recapType').value };
   function go(extra) { return esc(JSON.stringify(Object.assign({}, baseF, extra))); }
-  function card(g, cls) {
-    var gf = {};
-    if (!g.isAll) { if (d.byArea) gf.area = g.key || '__NONE__'; else gf.store = g.key || '__NONE__'; }
-    var head = ' data-act="recap-go" data-v="' + go(gf) + '" title="Lihat ' + g.orders + ' order di menu Orders" tabindex="0" role="button"';
-    var sub = (d.byArea && !g.isAll) ? Object.keys(g.stores).length + ' store &middot; ' : '';
-    return '<div class="rc-card ' + (cls || '') + '"><div class="rc-head clickable"' + head + '>' +
-      '<div class="rc-gname">' + ic(g.isAll ? 'layers' : (d.byArea ? 'map' : 'store'), 'sm') + '<span>' + esc(g.name) + '</span></div>' +
-      '<div class="rc-gmeta"><b>' + g.total.toLocaleString('id-ID') + ' pcs</b><span>' + sub + g.orders + ' order</span></div>' + ic('chevRight', 'sm') + '</div>' +
-      '<div class="rc-body">' + g.list.map(function (h) {
-        var hf = Object.assign({}, gf, { search: h.name === '(Tanpa nama hampers)' ? '' : h.name });
-        return '<div class="rc-row clickable" data-act="recap-go" data-v="' + go(hf) + '" tabindex="0" role="button" title="Lihat order hampers ini"><span class="rc-hn">' + esc(h.name) + '</span><span class="rc-ord">' + h.orders + ' order</span><b class="rc-qty">' + h.qty.toLocaleString('id-ID') + '<small>pcs</small></b></div>';
-      }).join('') + '</div></div>';
+  function rows_(list, gf) {
+    return list.map(function (h) {
+      var hf = Object.assign({}, gf, { search: h.name === '(Tanpa nama hampers)' ? '' : h.name });
+      return '<div class="rc-row clickable" data-act="recap-go" data-v="' + go(hf) + '" tabindex="0" role="button" title="Lihat order hampers ini"><span class="rc-hn">' + esc(h.name) + '</span><span class="rc-ord">' + h.orders + ' order</span><b class="rc-qty">' + h.qty.toLocaleString('id-ID') + '<small>pcs</small></b></div>';
+    }).join('');
   }
-  box.innerHTML = isSt ? card(d.all) : (d.groups.length > 1 ? card(d.all, 'rc-total') : '') + d.groups.map(function (g) { return card(g); }).join('');
+  function head_(g, gf, icon, sub) {
+    return '<div class="rc-head clickable" data-act="recap-go" data-v="' + go(gf) + '" title="Lihat ' + g.orders + ' order di menu Orders" tabindex="0" role="button">' +
+      '<div class="rc-gname">' + ic(icon, 'sm') + '<span>' + esc(g.name) + '</span></div>' +
+      '<div class="rc-gmeta"><b>' + g.total.toLocaleString('id-ID') + ' pcs</b><span>' + sub + g.orders + ' order</span></div>' + ic('chevRight', 'sm') + '</div>';
+  }
+  function allCard(g, cls) { return '<div class="rc-card ' + (cls || '') + '">' + head_(g, {}, 'layers', '') + '<div class="rc-body">' + rows_(g.list, {}) + '</div></div>'; }
+  function areaCard(g) {
+    var af = { area: g.key || '__NONE__' };
+    return '<div class="rc-card">' + head_(g, af, 'map', Object.keys(g.stores).length + ' store &middot; ') +
+      g.storeList.map(function (s) {
+        var sf = Object.assign({}, af, { store: s.key || '__NONE__' });
+        return '<div class="rc-store"><div class="rc-shead clickable" data-act="recap-go" data-v="' + go(sf) + '" tabindex="0" role="button" title="Lihat order store ini"><span class="rc-sname">' + ic('store', 'sm') + '<span>' + esc(s.name) + '</span></span><span class="rc-smeta">' + s.orders + ' order &middot; <b>' + s.total.toLocaleString('id-ID') + ' pcs</b></span></div>' + rows_(s.list, sf) + '</div>';
+      }).join('') + '</div>';
+  }
+  box.innerHTML = isSt ? allCard(d.all) : (d.groups.length > 1 ? allCard(d.all, 'rc-total') : '') + d.groups.map(areaCard).join('');
 }
 function exportRecapExcel_() {
   var d = RECAP.data; if (!d || !d.orders) { showToast('Tidak ada data untuk diekspor', 'warning'); return; }
@@ -1893,6 +2220,8 @@ function exportRecapExcel_() {
   });
   var list = Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return nat(a.area, b.area) || nat(a.store, b.store) || nat(a.hamper, b.hamper); });
   var fl = [$('recapStatus').value === 'ready' ? 'Perlu Disiapkan' : 'Semua Order'];
+  if ($('recapStore').value) fl.push('Store: ' + $('recapStore').value);
+  if ($('recapArea').value) fl.push('Area: ' + $('recapArea').value);
   if ($('recapType').value) fl.push('Tipe: ' + $('recapType').value);
   if ($('recapSearch').value.trim()) fl.push('Pencarian: "' + $('recapSearch').value.trim() + '"');
   var totQty = 0, totOrd = 0; list.forEach(function (g) { totQty += g.qty; totOrd += g.orders; });
@@ -1900,7 +2229,7 @@ function exportRecapExcel_() {
   var wb = new ExcelJS.Workbook(); wb.creator = 'Agrinesia Pickup Order'; wb.created = now;
   var ws = wb.addWorksheet('Rekap Hampers', { views: [{ state: 'frozen', ySplit: 6 }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } });
   var cols = [{ h: 'No', w: 6, a: 'center' }, { h: 'Area', w: 16, a: 'left' }, { h: 'Store', w: 30, a: 'left' }, { h: 'Hampers', w: 46, a: 'left' },
-    { h: 'Tgl Permintaan', w: 24, a: 'center' }, { h: 'Qty (pcs)', w: 12, a: 'center' }, { h: 'Jumlah Order', w: 14, a: 'center' }];
+    { h: 'Jadwal Diminta', w: 24, a: 'center' }, { h: 'Qty (pcs)', w: 12, a: 'center' }, { h: 'Jumlah Order', w: 14, a: 'center' }];
   var N = cols.length; ws.columns = cols.map(function (c) { return { width: c.w }; });
   var GREEN = 'FF0A6B47', LIGHT = 'FFE6F4EC', LINE = 'FFD5E3DB', thin = { style: 'thin', color: { argb: LINE } }, box = { top: thin, left: thin, bottom: thin, right: thin };
   function banner(r, text, font, fill, h) {
@@ -1944,7 +2273,7 @@ function exportRecapExcel_() {
   tr.getCell(6).value = totQty; tr.getCell(7).value = totOrd; tr.getCell(6).numFmt = '#,##0';
   ws.headerFooter.oddFooter = '&LAgrinesia Rekap Hampers&RHalaman &P / &N';
   function slug(s) { return String(s).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
-  var fname = ['Rekap-Hampers', isStoreRole_() && STATE.user.storeName ? slug(STATE.user.storeName) : (RECAP.group === 'area' ? 'Per-Area' : 'Per-Store'), stamp + '_' + p2(now.getHours()) + p2(now.getMinutes())].join('_').slice(0, 120) + '.xlsx';
+  var fname = ['Rekap-Hampers', isStoreRole_() && STATE.user.storeName ? slug(STATE.user.storeName) : 'Per-Area', stamp + '_' + p2(now.getHours()) + p2(now.getMinutes())].join('_').slice(0, 120) + '.xlsx';
   wb.xlsx.writeBuffer().then(function (buf) {
     var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click();
@@ -1956,24 +2285,135 @@ function exportRecapExcel_() {
 function copyRecap_() {
   var d = RECAP.data; if (!d || !d.orders) { showToast('Tidak ada data untuk disalin.', 'warning'); return; }
   var p = function (x) { return ('0' + x).slice(-2); }, n = new Date();
-  var out = ['*REKAP HAMPERS - ' + (d.byArea ? 'PER AREA' : 'PER STORE') + (d.ready ? ' (PERLU DISIAPKAN)' : '') + '*',
+  var out = ['*REKAP HAMPERS' + (d.ready ? ' (PERLU DISIAPKAN)' : '') + '*',
     p(n.getDate()) + '-' + p(n.getMonth() + 1) + '-' + n.getFullYear() + ' ' + p(n.getHours()) + ':' + p(n.getMinutes()), ''];
-  d.groups.forEach(function (g) {
-    out.push('*' + g.name + '* (' + g.total + ' pcs)');
-    g.list.forEach(function (h) { out.push('- ' + h.name + ': ' + h.qty + ' pcs'); });
+  if (isStoreRole_()) { d.all.list.forEach(function (h) { out.push('- ' + h.name + ': ' + h.qty + ' pcs'); }); out.push(''); }
+  else d.groups.forEach(function (g) {
+    out.push('*' + g.name.toUpperCase() + '* (' + g.total + ' pcs)');
+    g.storeList.forEach(function (s) {
+      out.push('_' + s.name + '_ (' + s.total + ' pcs)');
+      s.list.forEach(function (h) { out.push('- ' + h.name + ': ' + h.qty + ' pcs'); });
+    });
     out.push('');
   });
   out.push('*TOTAL: ' + d.all.total + ' pcs*');
   copyText_(out.join('\n'), 'Rekap disalin');
 }
+
+/* ============== KALENDER PENGAMBILAN ============== */
+var CAL = { y: new Date().getFullYear(), m: new Date().getMonth() };
+var CAL_MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+function calShift_(d) { CAL.m += d; if (CAL.m < 0) { CAL.m = 11; CAL.y--; } else if (CAL.m > 11) { CAL.m = 0; CAL.y++; } renderCalendar(); }
+function bindCalendar_() {
+  $('calMonth').addEventListener('change', function () { CAL.m = +this.value; renderCalendar(); });
+  $('calYear').addEventListener('change', function () { CAL.y = +this.value; renderCalendar(); });
+  ['calType', 'calStatus', 'calStore', 'calArea'].forEach(function (id) { $(id).addEventListener('change', renderCalendar); });
+}
+function calKind_(o) { var k = schedInfo_(o).k; if (isDoneStatus_(o.pickupStatus)) return 'done'; return k === 'overdue' ? 'over' : 'pend'; }
+function renderCalendar() {
+  var grid = $('calGrid'); if (!grid) return;
+  var p2 = function (n) { return ('0' + n).slice(-2); };
+  var mSel = $('calMonth'), ySel = $('calYear');
+  if (!mSel.options.length) mSel.innerHTML = CAL_MONTHS.map(function (n, i) { return '<option value="' + i + '">' + n + '</option>'; }).join('');
+  var yrs = {}, ty = new Date().getFullYear(); for (var yy = ty - 2; yy <= ty + 2; yy++) yrs[yy] = 1; yrs[CAL.y] = 1;
+  (STATE.orders || []).forEach(function (o) { var k = dkey_(o.deliveryDate); if (k) yrs[+k.slice(0, 4)] = 1; });
+  ySel.innerHTML = Object.keys(yrs).sort().map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
+  mSel.value = CAL.m; ySel.value = CAL.y;
+  if (!STATE.orders) { $('calSummary').innerHTML = ''; grid.innerHTML = '<div class="sk" style="grid-column:1/-1;height:260px;border-radius:16px"></div>'; return; }
+  var vis = scopeVis_();
+  var calFill = function (sel, key, label, show) {
+    if (!sel) return '';
+    var cur = sel.value, names = {}; STATE.orders.forEach(function (o) { if (o[key]) names[o[key]] = 1; });
+    sel.innerHTML = '<option value="">' + label + '</option>' + Object.keys(names).sort(function (a, b) { return a.localeCompare(b, 'id', { numeric: true }); }).map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    sel.value = names[cur] ? cur : '';
+    sel.classList.toggle('hidden', !show);
+    return show ? sel.value : '';
+  };
+  var sf = calFill($('calStore'), 'outletName', 'Semua Store', vis.store), af = calFill($('calArea'), 'area', 'Semua Area', vis.area);
+  var tp = $('calType').value, ss = $('calStatus').value;
+  var byDay = {}, sum = { orders: 0, pcs: 0, open: 0, done: 0, over: 0 };
+  var prefix = CAL.y + '/' + p2(CAL.m + 1) + '/';
+  groupOrders_(STATE.orders, true).forEach(function (o) {
+    var k = dkey_(o.deliveryDate); if (!k) return;
+    if (tp && o.deliveryType !== tp) return;
+    if (sf && o.outletName !== sf) return;
+    if (af && o.area !== af) return;
+    var kind = calKind_(o);
+    if (ss === 'open' && kind === 'done') return;
+    if (ss === 'overdue' && kind !== 'over') return;
+    if (ss === 'done' && kind !== 'done') return;
+    (byDay[k] = byDay[k] || []).push(o);
+    if (k.indexOf(prefix) === 0) { sum.orders++; sum.pcs += Number(o.qty) || 0; if (kind === 'done') sum.done++; else sum.open++; if (kind === 'over') sum.over++; }
+  });
+  var tile = function (c, i, v, l, s) { return '<div class="cal-tile ' + c + '"><span class="ct-ic">' + ic(i, 'sm') + '</span><div><b>' + Number(v).toLocaleString('id-ID') + '</b><small><span class="l-long">' + l + '</span><span class="l-short">' + s + '</span></small></div></div>'; };
+  $('calSummary').innerHTML = tile('ct-all', 'orders', sum.orders, 'Order bulan ini', 'Order') + tile('ct-pcs', 'layers', sum.pcs, 'Total pcs', 'Pcs') + tile('ct-pend', 'clock', sum.open, 'Belum selesai', 'Belum') + tile('ct-over', 'alert', sum.over, 'Melewati jadwal', 'Telat') + tile('ct-done', 'check', sum.done, 'Sudah selesai', 'Selesai');
+  if ($('calSub')) $('calSub').textContent = (isStoreRole_() && STATE.user && STATE.user.storeName ? STATE.user.storeName + ' - ' : '') + 'Jadwal berdasarkan Jadwal Diminta customer, klik tanggal untuk melihat detail';
+  var first = new Date(CAL.y, CAL.m, 1).getDay(), days = new Date(CAL.y, CAL.m + 1, 0).getDate(), today = todayKey_(), html = '';
+  for (var b = 0; b < first; b++) html += '<div class="cal-cell blank"></div>';
+  for (var d = 1; d <= days; d++) {
+    var key = prefix + p2(d), list = byDay[key] || [], dow = (first + d - 1) % 7;
+    var c = { over: 0, pend: 0, done: 0 }, pcs = 0;
+    list.forEach(function (o) { c[calKind_(o)]++; pcs += Number(o.qty) || 0; });
+    var cls = 'cal-cell' + (list.length ? ' has' : '') + (dow === 0 ? ' sun' : '') + (key === today ? ' today' : '') + (c.over ? ' hasover' : '');
+    var inner;
+    if (!list.length) inner = '<span class="cal-top"><span class="cal-d">' + d + '</span></span>';
+    else {
+      var tt = list.length, seg = function (k, n) { return n ? '<i class="' + k + '" style="width:' + (n / tt * 100) + '%"></i>' : ''; };
+      inner = '<span class="cal-top"><span class="cal-d">' + d + '</span><span class="cal-n">' + tt + '<em> order</em><em class="pp"> &middot; ' + pcs.toLocaleString('id-ID') + ' pcs</em></span></span>' +
+        '<span class="cal-p">' + pcs.toLocaleString('id-ID') + ' pcs</span>' +
+        '<span class="cal-mix">' + seg('over', c.over) + seg('pend', c.pend) + seg('done', c.done) + '</span>' +
+        '<span class="cal-chips">' +
+        (c.over ? '<i class="cd over" title="Melewati jadwal">' + c.over + '<s> telat</s></i>' : '') + (c.pend ? '<i class="cd pend" title="Menunggu">' + c.pend + '<s> menunggu</s></i>' : '') + (c.done ? '<i class="cd done" title="Selesai">' + c.done + '<s> selesai</s></i>' : '') + '</span>';
+    }
+    html += list.length ? '<button type="button" class="' + cls + '" data-act="cal-day" data-v="' + key + '">' + inner + '</button>' : '<div class="' + cls + '">' + inner + '</div>';
+  }
+  grid.innerHTML = html;
+  CAL.byDay = byDay;
+}
+function openCalDay_(key) {
+  var list = (CAL.byDay && CAL.byDay[key]) || []; if (!list.length) return;
+  var parts = key.split('/'), pcs = 0, done = 0, hp = {};
+  var dt = new Date(+parts[0], +parts[1] - 1, +parts[2]), dn = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][dt.getDay()];
+  list.forEach(function (o) { pcs += Number(o.qty) || 0; if (calKind_(o) === 'done') done++; hp[String(o.hamperName || '').trim() || '-'] = 1; });
+  $('calDayTitle').innerHTML = '<small class="cdy-dn">' + dn + ' &middot; Jadwal Pengambilan</small>' + (+parts[2]) + ' ' + CAL_MONTHS[+parts[1] - 1] + ' ' + parts[0];
+  var pct = Math.round(done / list.length * 100);
+  var sum = '<div class="cdy-sum"><div><b>' + list.length + '</b><small>Order</small></div><div><b>' + pcs.toLocaleString('id-ID') + '</b><small>Total pcs</small></div>' +
+    '<div class="cdy-prog"><b>' + done + '<em>/' + list.length + '</em></b><small>Selesai</small><span class="cdy-bar"><i style="width:' + pct + '%"></i></span></div></div>';
+  var groups = [['over', 'Melewati Jadwal'], ['pend', 'Menunggu Diambil / Dikirim'], ['done', 'Sudah Selesai']];
+  var body = groups.map(function (g) {
+    var items = list.filter(function (o) { return calKind_(o) === g[0]; }); if (!items.length) return '';
+    return '<div class="cdy-group ' + g[0] + '"><div class="cdy-gh"><i></i><span>' + g[1] + '</span><em>' + items.length + '</em></div>' + items.map(function (o) {
+      var del = isDeliveryOrder(o);
+      return '<div class="cdy-row ' + g[0] + '" data-act="detail" data-v="' + esc(o.orderReference) + '" tabindex="0" role="button" title="Lihat detail order">' +
+        '<div class="cdy-top"><b class="cdy-cust">' + esc(o.customer || '-') + '</b>' + (o.total > 1 ? progChip_(o) : '') + statusBadge(o.badgeKey) + '</div>' +
+        '<div class="cdy-sub"><span class="cdy-ref">' + esc(o.orderReference) + '</span>' + (o.outletName ? '<span>' + esc(o.outletName) + '</span>' : '') + (o.area ? '<span>' + esc(o.area) + '</span>' : '') + '</div>' +
+        '<div class="cdy-hlist">' + o.items.map(function (x) { return '<div class="cdy-hamp ' + (isDoneStatus_(x.pickupStatus) ? 'dn' : '') + '"><span>' + esc(x.hamperName || '-') + '</span>' + (isDoneStatus_(x.pickupStatus) ? '<em>' + ic('check', 'sm') + 'Selesai</em>' : '') + '<b>' + (Number(x.qty) || 0) + '<small>pcs</small></b></div>'; }).join('') + '</div>' +
+        '<div class="cdy-tags"><span class="cdy-t">' + ic(del ? 'truck' : 'store', 'sm') + esc(o.deliveryType || (del ? 'Delivery' : 'Pickup')) + '</span>' + schedBadge_(o) + '</div></div>';
+    }).join('') + '</div>';
+  }).join('');
+  $('calDayBody').innerHTML = sum + '<div class="cdy-list">' + body + '</div>';
+  openModal('modalCalDay');
+}
 /* ============== BATALKAN STATUS SELESAI (ADMIN) ============== */
 var REVERT_REF = null;
-function statusLabel_(s) { if (s === 'OVERDUE') return 'Melewati Jadwal'; if (s === 'DUE_TODAY') return 'Jadwal Hari Ini'; if (s === 'LATE_DONE') return 'Selesai Terlambat'; return String(s || '').toLowerCase().split('_').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
-function askRevert(o) {
+function statusLabel_(s) { if (s === 'OVERDUE') return 'Melewati Jadwal'; if (s === 'DUE_TODAY') return 'Jadwal Hari Ini'; if (s === 'LATE_DONE') return 'Selesai Terlambat'; if (s === 'ON_TIME') return 'Selesai Tepat Waktu'; return String(s || '').toLowerCase().split('_').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
+var REVERT_ROWS = [];
+function revSel_() {
+  var inp = document.querySelectorAll('#revertMsg .rv-it input');
+  if (!inp.length) return REVERT_ROWS.slice();
+  return Array.prototype.filter.call(inp, function (i) { return i.checked; }).map(function (i) { return Number(i.value); });
+}
+function askRevert(o, rows) {
   if (!isAdmin()) { showToast('Hanya Admin yang dapat membatalkan status.', 'warning'); return; }
   REVERT_REF = o.orderReference;
+  var doneIt = o.items.filter(function (x) { return isDoneStatus_(x.pickupStatus); });
+  if (rows && rows.length) doneIt = doneIt.filter(function (x) { return rows.indexOf(Number(x.row)) !== -1; });
+  REVERT_ROWS = doneIt.map(function (x) { return Number(x.row); });
   var target = isDeliveryOrder(o) ? 'Ready for Delivery' : 'Ready for Pickup';
-  $('revertMsg').innerHTML = 'Order <b>' + esc(o.orderReference) + '</b> (' + esc(o.customer || '-') + ') akan dikembalikan dari <b>' + esc(statusLabel_(o.pickupStatus)) + '</b> ke <b>' + target + '</b>.<br><small>Tgl Kirim dikosongkan, riwayat tetap tercatat.</small>';
+  var pick = (!rows && doneIt.length > 1)
+    ? '<div class="rv-items">' + doneIt.map(function (x) { return '<label class="rv-it on"><input type="checkbox" value="' + esc(x.row) + '" checked><span class="pf-ck">' + ic('check', 'sm') + '</span><span class="pf-nm">' + esc(x.hamperName || '-') + '</span><b class="pf-q">' + esc(x.qty) + '<small>pcs</small></b></label>'; }).join('') + '</div>'
+    : '<div class="rv-items">' + doneIt.map(function (x) { return '<div class="rv-it on is-fixed"><span class="pf-nm">' + esc(x.hamperName || '-') + '</span><b class="pf-q">' + esc(x.qty) + '<small>pcs</small></b></div>'; }).join('') + '</div>';
+  $('revertMsg').innerHTML = 'Order <b>' + esc(o.orderReference) + '</b> (' + esc(o.customer || '-') + '): ' + (doneIt.length > 1 && !rows ? 'pilih item yang dikembalikan' : 'item berikut dikembalikan') + ' ke <b>' + target + '</b>.' + pick + ((!rows && doneIt.length > 1) ? '<div class="rv-count"><span class="rv-cnt" id="rvCount"></span><button type="button" class="rv-all" id="rvAll"></button></div>' : '') + '<small>Tgl selesai item dikosongkan, riwayat tetap tercatat.</small>';
   $('revertReason').value = '';
   $('revertErr').classList.add('hidden');
   syncRevertBtn();
@@ -1981,33 +2421,47 @@ function askRevert(o) {
   setTimeout(function () { try { $('revertReason').focus(); } catch (e) {} }, 250);
 }
 // Tombol 'Kembalikan Status' nonaktif selama alasan belum diisi
+/* Info "n/total item dipilih" + tombol pilih semua */
+function revCount_() {
+  var c = $('rvCount'); if (!c) return;
+  var inp = document.querySelectorAll('#revertMsg .rv-it input'), n = 0;
+  Array.prototype.forEach.call(inp, function (i) { if (i.checked) n++; });
+  c.innerHTML = '<b>' + n + '/' + inp.length + '</b> item dipilih';
+  c.classList.toggle('none', n === 0);
+  var b = $('rvAll'); if (b) b.textContent = n === inp.length ? 'Hapus semua' : 'Pilih semua';
+}
+document.addEventListener('click', function (e) {
+  if (!(e.target && e.target.closest && e.target.closest('#rvAll'))) return;
+  var inp = document.querySelectorAll('#revertMsg .rv-it input'), all = Array.prototype.every.call(inp, function (i) { return i.checked; });
+  Array.prototype.forEach.call(inp, function (i) { i.checked = !all; i.closest('.rv-it').classList.toggle('on', !all); });
+  syncRevertBtn();
+});
 function syncRevertBtn() {
-  var ok = $('revertReason').value.trim().length >= 3;
+  revCount_();
+  var ok = $('revertReason').value.trim().length >= 3 && revSel_().length > 0;
   $('revertSubmitBtn').disabled = !ok;
 }
 document.addEventListener('input', function (e) { if (e.target && e.target.id === 'revertReason') syncRevertBtn(); });
 function submitRevert() {
-  var reason = $('revertReason').value.trim();
-  if (reason.length < 3) { syncRevertBtn(); return; }
+  var reason = $('revertReason').value.trim(), rows = revSel_();
+  if (reason.length < 3 || !rows.length) { syncRevertBtn(); return; }
   var ref = REVERT_REF;
   closeModal('modalRevert');
   runAction({
     processing: 'Membatalkan status...',
-    call: 'revertOrderStatus', args: [STATE.token, ref, reason],
-    okMsg: 'Status order dikembalikan',
+    call: 'revertOrderStatus', args: [STATE.token, ref, reason, rows],
+    okMsg: 'Status item dikembalikan',
     errMsg: 'Gagal membatalkan status order.',
     onOk: function (res) {
-      var o = findOrder(ref);
-      var prev = o ? o.pickupStatus : '';
-      var ns = res.data.newStatus;
-      if (o) { o.proofType = ''; o.proofValue = ''; o.pickupStatus = ns; o.actualDate = ''; o.updatedBy = STATE.user.name || STATE.user.username; o.updatedAt = nowStamp(); }
-      if (STATE.stats) {
-        if (prev === 'COMPLETED_PICKUP') STATE.stats.completedPickup = Math.max(0, STATE.stats.completedPickup - 1);
-        if (prev === 'COMPLETED_DELIVERY') STATE.stats.completedDelivery = Math.max(0, STATE.stats.completedDelivery - 1);
-        if (ns === 'READY_FOR_PICKUP') STATE.stats.readyForPickup++;
-        if (ns === 'READY_FOR_DELIVERY') STATE.stats.readyForDelivery++;
-      }
-      renderOrders(); renderDashboard_safe(); updateBell();
+      var had = (STATE.orders || []).filter(function (o) { return String(o.orderReference) === String(ref); });
+      var before = had.length ? groupOrders_(had)[0] : null;
+      var back = (res.data.items || []).map(function (i) { return Number(i.row); });
+      had.forEach(function (o) {
+        if (back.indexOf(Number(o.row)) === -1) return;
+        o.proofType = ''; o.proofValue = ''; o.pickupStatus = isDeliveryOrder(o) ? 'READY_FOR_DELIVERY' : 'READY_FOR_PICKUP'; o.actualDate = ''; o.updatedBy = STATE.user.name || STATE.user.username; o.updatedAt = nowStamp();
+      });
+      if (before) { statDelta_(before, -1); statDelta_(groupOrders_(had)[0], 1); }
+      renderOrders(); renderDashboard_safe(); updateBell(); if (STATE.page === 'calendar') renderCalendar();
     },
     after: function () { closeAllModals(); loadOrders(true); loadDashboard(true); }
   });
@@ -2517,7 +2971,10 @@ function saveArea() {
 
 /* ============== EXPORT EXCEL (sesuai filter yang sedang aktif) ============== */
 function exportOrdersExcel() {
-  var rows = filteredOrders();
+  var groups = filteredOrders();
+  var rows = groups.reduce(function (a, g) { return a.concat(g.items); }, []);
+  var nOrder = groups.length; // 1 order bisa punya banyak item (baris)
+  var rowGi = []; groups.forEach(function (g, gi) { g.items.forEach(function () { rowGi.push(gi); }); });
   if (!rows.length) { showToast('Tidak ada data untuk diekspor', 'error'); return; }
   if (typeof ExcelJS === 'undefined') { showToast('Library Excel belum termuat. Periksa koneksi internet lalu coba lagi.', 'error'); return; }
   var btn = $('exportOrdersBtn'); btn.disabled = true; btn.classList.add('is-busy');
@@ -2531,7 +2988,9 @@ function exportOrdersExcel() {
   if (f.store) fl.push('Store: ' + (f.store === '__NONE__' ? '(Tanpa Store)' : f.store));
   if (f.area) fl.push('Area: ' + (f.area === '__NONE__' ? '(Tanpa Area)' : f.area));
   if (f.deliveryType) fl.push('Tipe: ' + f.deliveryType);
-  if (f.date) fl.push('Tgl Permintaan: ' + fmtDate(f.date));
+  if (f.items) fl.push('Item: ' + (f.items === 'MULTI' ? 'Lebih dari 1 item' : '1 item saja'));
+  if (f.date) fl.push('Jadwal Diminta: ' + fmtDate(f.date));
+  if (f.actual) fl.push('Tgl Selesai: ' + fmtDate(f.actual));
   if (f.search) fl.push('Pencarian: "' + f.search + '"');
   var filterText = fl.length ? fl.join('  |  ') : 'Semua data (tanpa filter)';
   var totQty = 0, totRev = 0;
@@ -2544,7 +3003,7 @@ function exportOrdersExcel() {
     { h: 'No', w: 6, a: 'center' }, { h: 'Order Number', w: 17, a: 'left' }, { h: 'Customer', w: 22, a: 'left' },
     { h: 'Phone', w: 16, a: 'left' }, { h: 'Store', w: 26, a: 'left' }, { h: 'Area', w: 15, a: 'left' },
     { h: 'Hampers', w: 36, a: 'left' }, { h: 'Tipe', w: 11, a: 'center' }, { h: 'Qty', w: 8, a: 'center' },
-    { h: 'Revenue (Rp)', w: 16, a: 'right' }, { h: 'Tgl Permintaan', w: 16, a: 'center' }, { h: 'Tgl Aktual', w: 14, a: 'center' }, { h: 'Keterangan Jadwal', w: 22, a: 'center' }, { h: 'Status', w: 20, a: 'center' },
+    { h: 'Revenue (Rp)', w: 16, a: 'right' }, { h: 'Jadwal Diminta', w: 16, a: 'center' }, { h: 'Tgl Selesai', w: 14, a: 'center' }, { h: 'Keterangan Jadwal', w: 22, a: 'center' }, { h: 'Status', w: 20, a: 'center' },
     { h: 'Diupdate Oleh', w: 17, a: 'left' }, { h: 'Diupdate Pada', w: 19, a: 'center' }, { h: 'Bukti Serah Terima', w: 36, a: 'left' }
   ];
   var N = cols.length;
@@ -2562,7 +3021,7 @@ function exportOrdersExcel() {
   banner(1, 'LAPORAN PICKUP ORDER  -  AGRINESIA', { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } }, GREEN, 32);
   banner(2, 'Diekspor: ' + stampFull + '   |   Oleh: ' + ((STATE.user && (STATE.user.name || STATE.user.username)) || '-') + ' (' + ((STATE.user && STATE.user.role) || '-') + ')', { name: 'Calibri', size: 10.5, color: { argb: 'FF3B5247' } }, LIGHT, 20);
   banner(3, 'Filter: ' + filterText, { name: 'Calibri', size: 10.5, italic: true, color: { argb: 'FF3B5247' } }, LIGHT, 20);
-  banner(4, 'Ringkasan: ' + rows.length + ' order   |   Total Qty: ' + totQty.toLocaleString('id-ID') + '   |   Total Revenue: ' + fmtCurrency(totRev), { name: 'Calibri', size: 11, bold: true, color: { argb: GREEN } }, LIGHT, 22);
+  banner(4, 'Ringkasan: ' + nOrder + ' order  \u00b7  ' + rows.length + ' item   |   Total Qty: ' + totQty.toLocaleString('id-ID') + '   |   Total Revenue: ' + fmtCurrency(totRev), { name: 'Calibri', size: 11, bold: true, color: { argb: GREEN } }, LIGHT, 22);
   ws.getRow(5).height = 8;
 
   var hr = ws.getRow(6); hr.height = 28;
@@ -2576,14 +3035,14 @@ function exportOrdersExcel() {
   var stColor = { READY_FOR_PICKUP: ['FFFEF3C7', 'FF92400E'], READY_FOR_DELIVERY: ['FFEDE9FE', 'FF5B21B6'], COMPLETED_PICKUP: ['FFDBEAFE', 'FF1E40AF'], COMPLETED_DELIVERY: ['FFCCFBF1', 'FF0F766E'] };
   rows.forEach(function (o, i) {
     var r = ws.getRow(7 + i); r.height = 21;
-    var vals = [i + 1, o.orderReference || '-', o.customer || '-', String(o.phone || '-'), o.outletName || '-', o.area || '-', o.hamperName || '-', o.deliveryType || '-',
+    var vals = [rowGi[i] + 1, o.orderReference || '-', o.customer || '-', String(o.phone || '-'), o.outletName || '-', o.area || '-', o.hamperName || '-', o.deliveryType || '-',
       Number(o.qty) || 0, Number(o.revenue) || 0, fmtDate(o.deliveryDate) || '-', fmtDate(o.actualDate) || '-', schedText_(o), statusLabel_(o.pickupStatus), o.updatedBy || '-', fmtDate(o.updatedAt) || '-',
       o.proofType === 'RESI' ? 'Resi: ' + o.proofValue : (o.proofType === 'PHOTO' ? o.proofValue : '-')];
     vals.forEach(function (v, j) {
       var cell = r.getCell(j + 1); cell.value = v; cell.border = box;
       cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF1B2B23' } };
       cell.alignment = { vertical: 'middle', horizontal: cols[j].a, indent: cols[j].a === 'center' ? 0 : 1, wrapText: j === 6 };
-      if (i % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF6FAF8' } };
+      if (rowGi[i] % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF6FAF8' } };
       if (j === 3) cell.numFmt = '@';
       if (j === 9) cell.numFmt = '#,##0';
       if (j === 8) cell.numFmt = '#,##0';
@@ -2591,6 +3050,34 @@ function exportOrdersExcel() {
     var sc = stColor[o.pickupStatus];
     if (sc) { var s = r.getCell(14); s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: sc[0] } }; s.font = { name: 'Calibri', size: 10.5, bold: true, color: { argb: sc[1] } }; }
   });
+  // Gabungkan kolom level-order (No..Area, Tipe) untuk order dengan >1 item
+  (function () {
+    var s0 = 0;
+    for (var i = 1; i <= rows.length; i++) {
+      if (i < rows.length && rowGi[i] === rowGi[s0]) continue;
+      if (i - s0 > 1) {
+        var r1 = 7 + s0, r2 = 7 + i - 1;
+        [1, 2, 3, 4, 5, 6, 8].forEach(function (c) { ws.mergeCells(r1, c, r2, c); });
+      }
+      s0 = i;
+    }
+  })();
+  // Lebar kolom otomatis mengikuti isi terpanjang (min = judul + tombol filter; max dibatasi)
+  (function () {
+    var cap = { 17: 80 }; // Bukti Serah Terima (URL Drive panjang)
+    for (var c = 1; c <= N; c++) {
+      var mx = String(cols[c - 1].h).length + 4;
+      for (var i = 0; i < rows.length; i++) {
+        var v = ws.getRow(7 + i).getCell(c).value;
+        if (v === null || v === undefined) continue;
+        var t = typeof v === 'number' ? v.toLocaleString('id-ID') : String(v);
+        if (t.length > mx) mx = t.length;
+      }
+      if (c === 9) mx = Math.max(mx, String(totQty).length);
+      if (c === 10) mx = Math.max(mx, totRev.toLocaleString('id-ID').length);
+      ws.getColumn(c).width = Math.max(6, Math.min(cap[c] || 60, mx + 3));
+    }
+  })();
   var tr = ws.getRow(7 + rows.length); tr.height = 24;
   for (var k = 1; k <= N; k++) {
     var tc = tr.getCell(k); tc.border = { top: { style: 'medium', color: { argb: GREEN } }, bottom: thin, left: thin, right: thin };
@@ -2620,7 +3107,7 @@ function exportOrdersExcel() {
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
     document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    showToast('Export berhasil: ' + rows.length + ' order', 'success');
+    showToast('Export berhasil: ' + nOrder + ' order \u00b7 ' + rows.length + ' item', 'success');
   }).catch(function () { showToast('Gagal membuat file Excel', 'error'); })
     .then(function () { btn.disabled = false; btn.classList.remove('is-busy'); });
 }
@@ -2675,6 +3162,7 @@ function glFillSelects_() {
     var ks = Object.keys(vals).sort(function (a, b) { return a.localeCompare(b, 'id', { numeric: true }); });
     el.innerHTML = '<option value="">' + label + '</option>' + ks.map(function (k) { return '<option value="' + esc(k) + '">' + esc(k) + '</option>'; }).join('');
     el.value = ks.indexOf(cur) !== -1 ? cur : '';
+    el.classList.toggle('hidden', !(id === 'glStore' ? scopeVis_().store : scopeVis_().area));   // aturan seragam per role
   };
   fill('glStore', 'outletName', 'Semua Store'); fill('glArea', 'area', 'Semua Area');
 }
@@ -2694,7 +3182,7 @@ function renderGallery() {
     if (dt && glDateKey_(o).indexOf(dt) === -1) return false;
     if (q && [o.orderReference, o.customer, o.hamperName, o.outletName, o.phone, o.proofType === 'RESI' ? o.proofValue : ''].join(' ').toLowerCase().indexOf(q) === -1) return false;
     return true;
-  }).map(function (o) { return { o: o, fid: o.proofType === 'PHOTO' ? glId_(o.proofValue) : '' }; });
+  }).map(function (o) { return Object.assign({}, o); }).filter((function () { var seen = {}; return function (o) { var k = o.orderReference + '|' + o.proofValue; if (seen[k]) { seen[k].hamperName += ' \u00b7 ' + o.hamperName; seen[k].qty = (Number(seen[k].qty) || 0) + (Number(o.qty) || 0); return false; } seen[k] = o; return true; }; })()).map(function (o) { return { o: o, fid: o.proofType === 'PHOTO' ? glId_(o.proofValue) : '' }; });
   list.sort(function (a, b) { return String(b.o.updatedAt || b.o.deliveryDate).localeCompare(String(a.o.updatedAt || a.o.deliveryDate)); });
   GL.list = list;
   $('glCount').textContent = list.length.toLocaleString('id-ID') + ' bukti';

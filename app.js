@@ -226,6 +226,8 @@ function fmtDate(v) {
   return p(m[3]) + '-' + p(m[2]) + '-' + m[1] + (m[4] ? ' ' + m[4] : '');
 }
 function isAdmin() { return STATE.user && STATE.user.role === 'ADMIN'; }
+/* Revert (batalkan status selesai): Admin & Manager. Store tidak boleh. Server tetap memvalidasi. */
+function canRevert_() { return !!(STATE.user && (STATE.user.role === 'ADMIN' || STATE.user.role === 'MANAGER')); }
 /* ===== Sesi login: tetap login walau PWA di-swipe/close (localStorage), bukan hilang seperti sessionStorage ===== */
 function isStandalone() { try { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; } catch (e) { return false; } }
 function sessGet(k) { try { return localStorage.getItem(k) || sessionStorage.getItem(k); } catch (e) { return null; } }
@@ -514,6 +516,28 @@ function activeBadge(s) {
   return s === 'ACTIVE' ? '<span class="badge badge-success">ACTIVE</span>' : '<span class="badge badge-default">INACTIVE</span>';
 }
 
+
+/* ===== Cek sesi berkala: user dinonaktifkan/dihapus/diubah role langsung dikeluarkan (tanpa menunggu klik berikutnya) ===== */
+var HB_BUSY = false, HB_LAST = 0;
+function sessionHeartbeat_() {
+  if (!STATE.token || !STATE.user || HB_BUSY || document.hidden) return;
+  if (Date.now() - HB_LAST < 20000) return;
+  HB_BUSY = true; HB_LAST = Date.now();
+  try {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        HB_BUSY = false;
+        if (!res) return;
+        if (res.success === false && /Sesi tidak valid/.test(res.message || '')) { forceRelogin(); return; }
+        if (res.success && STATE.user && res.data && res.data.role && res.data.role !== STATE.user.role) forceRelogin();
+      })
+      .withFailureHandler(function () { HB_BUSY = false; })   // jaringan lemah != sesi habis
+      .validateSession(STATE.token);
+  } catch (e) { HB_BUSY = false; }
+}
+setInterval(sessionHeartbeat_, 120000);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) sessionHeartbeat_(); });
+
 /* ============== BOOT ============== */
 document.addEventListener('DOMContentLoaded', function () {
   hydrateIcons();
@@ -534,7 +558,10 @@ document.addEventListener('DOMContentLoaded', function () {
   google.script.run
     .withSuccessHandler(function (res) {
       $('bootSplash').classList.add('hidden');
-      if (res.success) {
+      if (res.success && instant && cachedUser.role && res.data.role && cachedUser.role !== res.data.role) {
+        sessDel('pom_token'); sessDel('pom_user'); sessDel('pom_page');   // role diubah admin: login ulang agar menu & akses sesuai
+        showLogin();
+      } else if (res.success) {
         if (!instant) restoreSessionUI({ name: res.data.username, username: res.data.username, role: res.data.role, storeId: res.data.storeId, storeName: '', areaId: res.data.areaId });
       } else {
         sessDel('pom_token'); sessDel('pom_user'); sessDel('pom_page');
@@ -1590,9 +1617,9 @@ function filteredOrders() {
   });
 }
 
-// Admin saja: batalkan status selesai (muncul bila minimal 1 item sudah selesai)
+// Admin & Manager: batalkan status selesai (muncul bila minimal 1 item sudah selesai)
 function revertBtn(o, iconOnly) {
-  if (!isAdmin() || !o.done) return '';
+  if (!canRevert_() || !o.done) return '';
   if (iconOnly) return iconActionBtn({ kind: 'warn', act: 'revert', v: o.orderReference, icon: 'undo', title: 'Batalkan Status Selesai' });
   return '<button class="btn btn-block btn-warn-outline" style="margin-top:8px" data-act="revert" data-v="' + esc(o.orderReference) + '">' + ic('undo', 'sm') + ' Batalkan Status Selesai</button>';
 }
@@ -1728,7 +1755,7 @@ function renderOrderDetail(o) {
       '<div class="od-it-name fit1" title="' + nm + '">' + nm + '</div>' +
       '<div class="od-it-sub"><span class="od-it-meta">' + ic('calendar', 'sm') + '<span>Jadwal diminta <b>' + esc(fmtDate(x.deliveryDate) || '-') + '</b></span></span>' +
       '<span class="od-it-qty">' + esc(x.qty) + '<small>pcs</small></span></div>' +
-      '<div class="od-it-st">' + st + (schedBadge_(x) || '') + (d && isAdmin() ? '<button type="button" class="od-it-undo" data-act="revert-item" data-v="' + esc(x.row) + '" title="Batalkan item ini">' + ic('undo', 'sm') + ' Batalkan</button>' : '') + '</div></div>';
+      '<div class="od-it-st">' + st + (schedBadge_(x) || '') + (d && canRevert_() ? '<button type="button" class="od-it-undo" data-act="revert-item" data-v="' + esc(x.row) + '" title="Batalkan item ini">' + ic('undo', 'sm') + ' Batalkan</button>' : '') + '</div></div>';
   }).join('');
   $('orderDetailBody').innerHTML =
     '<div class="od-hero"><div class="detail-ico">' + ic('file', 'lg') + '</div>' +
@@ -1772,7 +1799,7 @@ function renderOrderDetail(o) {
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
     $('markCompleteBtn').addEventListener('click', function () { askComplete(o); });
   } else {
-    var undoHtml = isAdmin() ? '<button class="btn btn-warn-outline btn-revert" id="detailRevertBtn" style="margin-right:auto">' + ic('undo', 'sm') + '<span>Batalkan Status</span></button>' : '<span class="hint" style="margin-right:auto;align-self:center">Order sudah selesai diproses.</span>';
+    var undoHtml = canRevert_() ? '<button class="btn btn-warn-outline btn-revert" id="detailRevertBtn" style="margin-right:auto">' + ic('undo', 'sm') + '<span>Batalkan Status</span></button>' : '<span class="hint" style="margin-right:auto;align-self:center">Order sudah selesai diproses.</span>';
     f.innerHTML = undoHtml + '<button class="btn btn-secondary" data-close>Close</button>';
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
     if ($('detailRevertBtn')) $('detailRevertBtn').addEventListener('click', function () { askRevert(o); });
@@ -2441,7 +2468,7 @@ function revSel_() {
   return Array.prototype.filter.call(inp, function (i) { return i.checked; }).map(function (i) { return Number(i.value); });
 }
 function askRevert(o, rows) {
-  if (!isAdmin()) { showToast('Hanya Admin yang dapat membatalkan status.', 'warning'); return; }
+  if (!canRevert_()) { showToast('Hanya Admin atau Manager yang dapat membatalkan status.', 'warning'); return; }
   REVERT_REF = o.orderReference;
   var doneIt = o.items.filter(function (x) { return isDoneStatus_(x.pickupStatus); });
   if (rows && rows.length) doneIt = doneIt.filter(function (x) { return rows.indexOf(Number(x.row)) !== -1; });

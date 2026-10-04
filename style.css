@@ -3461,3 +3461,22 @@ body.dark .ocp-bar{background:#1b2e25;} body.dark .ocp-bar i{background:#3a5247;
 body.dark .ocp-n{color:#9ab5a7;}
 body.dark .oc-prog.part .ocp-bar i{background:linear-gradient(90deg,#f59e0b,#fbbf24);} body.dark .oc-prog.part .ocp-n{color:#fbbf24;}
 body.dark .oc-prog.full .ocp-bar i{background:linear-gradient(90deg,#10b981,#34d399);} body.dark .oc-prog.full .ocp-n{color:#6ee7a0;}
+
+/* ===== v42: Daftar Pickup Order 1 baris (Export jadi ikon) + aksi Rekap ringkas di sebelah judul (HP) ===== */
+@media (max-width:768px){
+  #page-orders .table-head{flex-wrap:nowrap !important;gap:8px;}
+  #page-orders .table-head .card-title{flex:1 1 auto;min-width:0;gap:7px;font-size:10.5px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #page-orders .table-head .th-right{flex:none;gap:6px;}
+  #page-orders .table-head .count-pill{white-space:nowrap;font-size:11px;padding:4px 9px;}
+  #page-orders .table-head .btn-export{width:34px;height:34px;padding:0;justify-content:center;gap:0;border-radius:50%;}
+  #page-orders .table-head .btn-export span{display:none;}
+  #page-orders .table-head .btn-export svg{width:16px;height:16px;}
+  #page-recap .page-head{display:grid !important;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:4px;}
+  #page-recap .page-head>div:first-child{display:contents;}
+  #page-recap .page-head h2{grid-column:1;grid-row:1;margin:0;}
+  #page-recap .page-head p{grid-column:1/-1;grid-row:2;margin:0;}
+  #page-recap .rc-actions{grid-column:2;grid-row:1;flex:none;gap:6px;}
+  #page-recap .rc-actions .btn-export{flex:none;height:32px;padding:0 12px 0 10px;font-size:12px;}
+  #page-recap .rc-actions .btn-export svg{width:15px;height:15px;}
+}
+@media (max-width:440px){ #page-recap .rc-actions .rc-x{display:none;} }

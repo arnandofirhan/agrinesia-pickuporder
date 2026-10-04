@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css?v=43">
+  <link rel="stylesheet" href="style.css?v=45">
 </head>
 <body>
 
@@ -233,7 +233,7 @@
       <!-- REKAP HAMPERS -->
       <section id="page-recap" class="page hidden">
         <div class="page-head"><div><h2>Rekap per Hampers</h2><p id="recapSub">Jumlah yang harus disiapkan, dikelompokkan per area, lalu per store</p></div>
-          <div class="rc-actions"><button type="button" class="btn-export" id="recapExportBtn" data-act="recap-export" title="Export ke Excel" aria-label="Export ke Excel"><i data-ic="download" data-size="sm"></i><span>Export</span></button><button type="button" class="btn-export" id="recapCopyBtn" data-act="recap-copy" title="Salin rekap sebagai teks (siap tempel ke WhatsApp)" aria-label="Salin rekap"><i data-ic="copy" data-size="sm"></i><span>Salin Rekap</span></button></div></div>
+          <div class="rc-actions"><button type="button" class="btn-export" id="recapExportBtn" data-act="recap-export" title="Export ke Excel" aria-label="Export ke Excel"><i data-ic="download" data-size="sm"></i><span>Export</span></button><button type="button" class="btn-export" id="recapCopyBtn" data-act="recap-copy" title="Salin rekap sebagai teks (siap tempel ke WhatsApp)" aria-label="Salin rekap"><i data-ic="copy" data-size="sm"></i><span>Salin<span class="rc-x"> Rekap</span></span></button></div></div>
         <div class="card fc" id="recapFilterCard">
           <div class="rc-seg" id="recapGroup" role="tablist" hidden style="display:none">
             <button type="button" class="on" data-act="recap-group" data-v="store"><i data-ic="store" data-size="sm"></i>Per Store</button>
@@ -628,7 +628,7 @@
   </div>
 </div>
 <script src="config.js?v=26"></script>
-<script src="app.js?v=43"></script>
+<script src="app.js?v=44"></script>
 <script>if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); }); }</script>
 </body>
 </html>

@@ -443,6 +443,21 @@ function schedInfo_(o) {
   return { k: 'upcoming', d: dayDiff_(t, req) };
 }
 function schedText_(o) { var s = schedInfo_(o); return ({ overdue: 'Terlambat ' + s.d + ' hari', today: 'Jadwal hari ini', late: 'Selesai telat ' + s.d + ' hari', ontime: 'Tepat waktu' })[s.k] || '-'; }
+/* ===== v36: nama item selalu 1 baris (kecilkan font otomatis, sisanya ellipsis) ===== */
+var FIT_RO = window.ResizeObserver ? new ResizeObserver(function (es) { es.forEach(function (en) { fitOne_(en.target); }); }) : null;
+function fitOne_(el) {
+  var w = el.clientWidth; if (!w || el._fw === w) return;
+  el.style.fontSize = '';
+  var base = parseFloat(getComputedStyle(el).fontSize) || 13, min = Math.max(10, base * 0.74), s = base;
+  while (el.scrollWidth > w && s > min) { s -= 0.25; el.style.fontSize = s + 'px'; }
+  el._fw = w;
+}
+function fitAll_(root) {
+  (root || document).querySelectorAll('.fit1').forEach(function (el) {
+    el._fw = 0; fitOne_(el);
+    if (FIT_RO && !el._ro) { el._ro = 1; FIT_RO.observe(el); }
+  });
+}
 function schedBadge_(o) {
   var s = schedInfo_(o), m = ({ overdue: 'sb-over', today: 'sb-today', late: 'sb-late', ontime: 'sb-ok' })[s.k];
   return m ? '<span class="sched-badge ' + m + '">' + esc(schedText_(o)) + '</span>' : '';
@@ -959,10 +974,11 @@ function renderTopHampers_() {
   box.innerHTML = '<div class="th-list">' + shown.map(function (x, i) {
     var pct = Math.max(4, Math.round(x[mode] / max * 100));
     return '<div class="th-row r' + (i < 3 ? i + 1 : 0) + '"><span class="th-rank">' + (i + 1) + '</span>' +
-      '<div class="th-body"><div class="th-top"><b class="th-name">' + esc(x.name) + '</b><span class="th-val">' + x[mode].toLocaleString('id-ID') + '<small>' + (mode === 'qty' ? 'pcs' : 'order') + '</small></span></div>' +
-      '<div class="th-bar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="th-body"><div class="th-top"><b class="th-name fit1" title="' + esc(x.name) + '">' + esc(x.name) + '</b></div>' +
+      '<div class="th-mid"><div class="th-bar"><i style="width:' + pct + '%"></i></div><span class="th-val">' + x[mode].toLocaleString('id-ID') + '<small>' + (mode === 'qty' ? 'pcs' : 'order') + '</small></span></div>' +
       '<div class="th-meta"><span>' + x.qty.toLocaleString('id-ID') + ' pcs</span><span>' + x.orders.toLocaleString('id-ID') + ' order</span><span>' + x.cust.toLocaleString('id-ID') + ' customer</span></div></div></div>';
   }).join('') + '</div>' + (list.length > 5 ? '<button type="button" class="th-more" id="thMore">' + (TH.all ? 'Tampilkan lebih sedikit' : 'Lihat lebih banyak (' + Math.min(list.length, 15) + ')') + '</button>' : '');
+  fitAll_(box);
 }
 document.addEventListener('click', function (e) {
   var t = e.target && e.target.closest ? e.target.closest('[data-th],#thMore') : null; if (!t) return;
@@ -1040,10 +1056,16 @@ function renderActivity() {
   rows.forEach(function (g) { if (g.e.rev) { nRev++; var r = g.e.reason.trim(); if (r) { var k = r.toLowerCase(); (why[k] || (why[k] = { t: r, c: 0 })).c++; } } else nOk++; });
   $('actCount').textContent = rows.length.toLocaleString('id-ID') + ' aktivitas';
   var wl = Object.keys(why).map(function (k) { return why[k]; }).sort(function (a, b) { return b.c - a.c; }).slice(0, 4);
-  sum.innerHTML = '<div class="act-stats"><div class="act-stat"><small>Total Aktivitas</small><b>' + rows.length.toLocaleString('id-ID') + '</b></div>' +
-    '<div class="act-stat ok"><small>Diselesaikan</small><b>' + nOk.toLocaleString('id-ID') + '</b></div>' +
-    '<div class="act-stat rev"><small>Dibatalkan</small><b>' + nRev.toLocaleString('id-ID') + '</b></div></div>' +
-    (wl.length ? '<div class="act-why"><span class="act-why-t">Alasan pembatalan teratas</span><div class="act-why-l">' + wl.map(function (w) { return '<span class="act-why-p">' + esc(w.t) + '<b>' + w.c + '</b></span>'; }).join('') + '</div></div>' : '');
+  var tot = rows.length, pOk = tot ? Math.round(nOk / tot * 100) : 0, pRev = tot ? 100 - pOk : 0;
+  var stat = function (cls, icon, label, val, pct) {
+    return '<div class="act-stat ' + cls + '"><div class="as-top"><span class="as-ic">' + ic(icon, 'sm') + '</span>' + (pct === '' ? '' : '<span class="as-pct">' + pct + '%</span>') + '</div><b>' + val.toLocaleString('id-ID') + '</b><small>' + label + '</small></div>';
+  };
+  var wmax = wl.length ? wl[0].c : 1;
+  sum.innerHTML = '<div class="act-stats">' + stat('all', 'layers', 'Total Aktivitas', tot, '') + stat('ok', 'check', 'Diselesaikan', nOk, tot ? pOk : '') + stat('rev', 'undo', 'Dibatalkan', nRev, tot ? pRev : '') + '</div>' +
+    (tot ? '<div class="act-ratio" title="' + pOk + '% selesai \u00b7 ' + pRev + '% dibatalkan"><i class="ok" style="width:' + pOk + '%"></i><i class="rev" style="width:' + pRev + '%"></i></div>' : '') +
+    (wl.length ? '<div class="act-why"><div class="aw-head"><span class="as-ic">' + ic('undo', 'sm') + '</span><b>Alasan pembatalan teratas</b><small>' + wl.length + ' alasan</small></div><div class="aw-list">' +
+      wl.map(function (w, i) { return '<div class="aw-row"><span class="aw-rank">' + (i + 1) + '</span><div class="aw-body"><span class="aw-t">' + esc(w.t) + '</span><div class="aw-bar"><i style="width:' + Math.max(8, Math.round(w.c / wmax * 100)) + '%"></i></div></div><b class="aw-c">' + w.c + '</b></div>'; }).join('') +
+      '</div></div>' : '');
   if (!rows.length) { box.innerHTML = '<div class="act-empty">' + (ACT.rows.length ? 'Tidak ada aktivitas yang cocok dengan filter.' : 'Belum ada aktivitas tercatat.') + '</div>'; return; }
   var show = rows.slice(0, ACT.shown), lastDay = '', html = '';
   show.forEach(function (g) {
@@ -1054,12 +1076,13 @@ function renderActivity() {
     html += '<div class="act-card ' + (e.rev ? 'is-rev' : 'is-ok') + '"><span class="act-ic">' + ic(e.rev ? 'undo' : 'check', 'sm') + '</span><div class="act-main">' +
       '<div class="act-head"><b class="act-title">' + (e.rev ? 'Status dibatalkan' : 'Order diselesaikan') + cnt + '</b><time>' + esc(tm ? tm[1] : '') + '</time></div>' +
       '<div class="act-order"><button type="button" class="act-ref mono" data-act="detail" data-v="' + esc(e.ref) + '" title="Lihat detail order">#' + esc(e.ref) + '</button>' + (who ? '<span class="act-who">' + esc(who) + '</span>' : '') + '</div>' +
-      (g.items.length ? '<div class="od-tl-items">' + g.items.map(function (it) { return '<span class="od-tl-it"><i>' + ic('layers', 'sm') + '</i><span class="nm">' + esc(it.name) + '</span><b>&times;' + esc(it.qty) + '</b></span>'; }).join('') + '</div>' : '') +
+      (g.items.length ? '<div class="od-tl-items">' + g.items.map(function (it) { return '<span class="od-tl-it"><i>' + ic('layers', 'sm') + '</i><span class="nm fit1" title="' + esc(it.name) + '">' + esc(it.name) + '</span><b>&times;' + esc(it.qty) + '</b></span>'; }).join('') + '</div>' : '') +
       (e.reason ? '<div class="od-tl-note">' + (e.rev ? '<span class="od-tl-nl">Alasan</span>' : '') + esc(e.reason) + '</div>' : '') +
       '<div class="act-foot"><span class="act-flow">' + statusBadge(e.prev) + '<span class="od-tl-arrow">&rarr;</span>' + statusBadge(e.next) + '</span><span class="act-by">oleh <b>' + esc(e.by) + '</b></span></div></div></div>';
   });
   if (rows.length > ACT.shown) html += '<button type="button" class="th-more act-more" id="actMore">Muat lebih banyak (' + (rows.length - ACT.shown) + ' lagi)</button>';
   box.innerHTML = html;
+  fitAll_(box);
 }
 document.addEventListener('input', function (e) { if (e.target && e.target.id === 'actSearch') { ACT.shown = 30; renderActivity(); } });
 document.addEventListener('change', function (e) { if (e.target && /^act(Type|User|Store|Area|Date)$/.test(e.target.id || '')) { ACT.shown = 30; renderActivity(); } });
@@ -1641,16 +1664,27 @@ function renderOrders(keepScroll) {
     var items = '<div class="oc-items">' + o.items.map(function (x) {
       var d = isDoneStatus_(x.pickupStatus);
       return '<div class="oc-it ' + (d ? 'dn' : 'op') + '"><span class="oc-it-ic">' + ic(d ? 'check' : 'package', 'sm') + '</span>' +
-        '<span class="oc-it-n">' + esc(x.hamperName || '-') + '</span><b class="oc-it-q">' + esc(x.qty) + '<small>pcs</small></b>' +
+        '<span class="oc-it-n fit1" title="' + esc(x.hamperName || '-') + '">' + esc(x.hamperName || '-') + '</span><b class="oc-it-q">' + esc(x.qty) + '<small>pcs</small></b>' +
         '<span class="oc-it-s">' + (d ? 'Selesai ' + esc(fmtDate(x.actualDate) || '') : 'Menunggu') + '</span></div>';
     }).join('') + '</div>';
     return '<div class="order-card oc-compact">' +
-      '<div class="order-card-top"><span class="mono">' + esc(o.orderReference) + '</span>' + progChip_(o) + statusBadge(o.badgeKey) + '</div>' +
-      '<div class="oc-title"><h4>' + esc(o.customer) + '</h4><div class="oc-actions">' + viewBtn + completeBtn(o, true) + revertBtn(o, true) + '</div></div>' + items +
-      '<div class="oc-grid">' + cell('Store', o.outletName, true) + cell('Tipe', o.deliveryType) + cell('Total Qty', o.qty) + cell('Jadwal Diminta', fmtDate(o.deliveryDate), true) + '</div>' + (schedBadge_(o) ? '<div class="oc-sched">' + schedBadge_(o) + '</div>' : '') +
+      '<div class="order-card-top"><span class="mono oc-ref">' + esc(o.orderReference) + '</span><div class="oc-top-r">' + statusBadge(o.badgeKey) + '</div></div>' +
+      '<div class="oc-title"><h4>' + esc(o.customer) + '</h4><div class="oc-actions">' + viewBtn + completeBtn(o, true) + revertBtn(o, true) + '</div></div>' +
+      '<div class="oc-prog ' + (o.complete ? 'full' : o.done ? 'part' : 'none') + '" title="' + o.done + ' dari ' + o.total + ' item selesai"><span class="ocp-l">Progres item</span><div class="ocp-bar"><i style="width:' + Math.round(o.done / (o.total || 1) * 100) + '%"></i></div><span class="ocp-n">' + o.done + '/' + o.total + '</span></div>' + items +
+      (function () {
+        var dl = isDeliveryOrder(o), sb = schedBadge_(o);
+        function it(cls, icon, label, val, extra) { return '<div class="oi ' + cls + '"><span class="oi-ic">' + ic(icon, 'sm') + '</span><div class="oi-tx"><small>' + label + '</small>' + val + '</div>' + (extra || '') + '</div>'; }
+        return '<div class="oc-info">' +
+          it('oi-store', 'store', 'Store', '<b class="fit1" title="' + esc(o.outletName || '-') + '">' + esc(o.outletName || '-') + '</b>') +
+          it('oi-type ' + (dl ? 'is-del' : 'is-pick'), dl ? 'truck' : 'package', 'Tipe', '<b>' + esc(o.deliveryType || '-') + '</b>') +
+          it('oi-qty', 'layers', 'Total Qty', '<b>' + esc(o.qty) + '<em>pcs</em></b>') +
+          it('oi-date', 'calendar', 'Jadwal Diminta', '<b>' + esc(fmtDate(o.deliveryDate) || '-') + '</b>', sb) +
+          '</div>';
+      })() +
       '</div>';
   }).join('');
 
+  fitAll_(list);
   pager.classList.toggle('hidden', all.length <= 25 && PAGE_SIZE === 25);
   $('orderPageSize').value = String(PAGE_SIZE);
   $('pagerInfo').textContent = (start + 1) + '\u2013' + (start + rows.length) + ' / ' + all.length;
@@ -1689,10 +1723,11 @@ function renderOrderDetail(o) {
   var itemsHtml = o.items.map(function (x) {
     var d = isDoneStatus_(x.pickupStatus);
     var st = d ? '<span class="its its-ok">' + ic('check', 'sm') + ' ' + (delivery ? 'Terkirim' : 'Terambil') + ' &middot; ' + esc(fmtDate(x.actualDate) || '-') + '</span>' : '<span class="its its-wait">Menunggu</span>';
+    var nm = esc(x.hamperName || '-');
     return '<div class="od-it ' + (d ? 'is-done' : 'is-open') + '">' +
-      '<div class="od-it-main"><div class="od-it-name">' + esc(x.hamperName || '-') + '</div>' +
-      '<div class="od-it-meta">Jadwal diminta ' + esc(fmtDate(x.deliveryDate) || '-') + '</div></div>' +
-      '<span class="od-it-qty">' + esc(x.qty) + '<small>pcs</small></span>' +
+      '<div class="od-it-name fit1" title="' + nm + '">' + nm + '</div>' +
+      '<div class="od-it-sub"><span class="od-it-meta">' + ic('calendar', 'sm') + '<span>Jadwal diminta <b>' + esc(fmtDate(x.deliveryDate) || '-') + '</b></span></span>' +
+      '<span class="od-it-qty">' + esc(x.qty) + '<small>pcs</small></span></div>' +
       '<div class="od-it-st">' + st + (schedBadge_(x) || '') + (d && isAdmin() ? '<button type="button" class="od-it-undo" data-act="revert-item" data-v="' + esc(x.row) + '" title="Batalkan item ini">' + ic('undo', 'sm') + ' Batalkan</button>' : '') + '</div></div>';
   }).join('');
   $('orderDetailBody').innerHTML =
@@ -1729,6 +1764,7 @@ function renderOrderDetail(o) {
         '<div id="odTimeline" class="od-tl"><div class="od-tl-empty">Memuat riwayat...</div></div></div>' +
     '</div>';
   loadOrderTimeline_(o);
+  fitAll_($('orderDetailBody'));
 
   var f = $('orderDetailFooter');
   if (!done) {
@@ -1790,19 +1826,20 @@ function loadOrderTimeline_(o) {
         pbox = '<div class="od-tl-meta"><span>' + (proof.prev ? 'Resi sebelumnya' : 'Resi') + '</span><b class="mono">' + esc(proof.val) + '</b></div>';
       } else if (proof && proof.type === 'Foto') { pbox = '<div class="od-tl-extra">Foto bukti (link tidak tersimpan)</div>'; }
       var chips = g.items.length ? '<div class="od-tl-items">' + g.items.map(function (it) {
-        return '<span class="od-tl-it"><i>' + ic('layers', 'sm') + '</i><span class="nm">' + esc(it.name) + '</span><b>&times;' + esc(it.qty) + '</b></span>';
+        return '<span class="od-tl-it"><i>' + ic('layers', 'sm') + '</i><span class="nm fit1" title="' + esc(it.name) + '">' + esc(it.name) + '</span><b>&times;' + esc(it.qty) + '</b></span>';
       }).join('') + '</div>' : '';
       var meta = (e.prevDate ? '<div class="od-tl-meta"><span>Tgl kirim sebelumnya</span><b>' + esc(e.prevDate) + '</b></div>' : '') +
                  (e.doneBy ? '<div class="od-tl-meta"><span>Diselesaikan oleh</span><b>' + esc(e.doneBy) + '</b></div>' : '');
       var cnt = g.items.length > 1 ? '<em class="od-tl-cnt">' + g.items.length + ' item</em>' : '';
-      return '<div class="od-tl-item ' + (rev ? 'is-rev' : 'is-ok') + '"><span class="od-tl-dot">' + ic(rev ? 'undo' : 'check', 'sm') + '</span>' +
-        '<div class="od-tl-body"><div class="od-tl-top"><b>' + (rev ? 'Status dibatalkan' : 'Order diselesaikan') + cnt + '</b><small>' + esc(fmtDate(e.at)) + '</small></div>' +
+      return '<div class="od-tl-item ' + (rev ? 'is-rev' : 'is-ok') + '">' +
+        '<div class="od-tl-body"><div class="od-tl-top"><span class="od-tl-dot">' + ic(rev ? 'undo' : 'check', 'sm') + '</span><div class="od-tl-tt"><b>' + (rev ? 'Status dibatalkan' : 'Order diselesaikan') + cnt + '</b><small>' + esc(fmtDate(e.at)) + '</small></div></div>' +
         chips +
         '<div class="od-tl-flow">' + statusBadge(e.prev) + '<span class="od-tl-arrow">&rarr;</span>' + statusBadge(e.next) + '</div>' +
         '<div class="od-tl-by">oleh <b>' + esc(e.by || '-') + '</b></div>' +
         (e.reason ? '<div class="od-tl-note">' + (rev ? '<span class="od-tl-nl">Alasan</span>' : '') + esc(e.reason) + '</div>' : '') +
         (meta ? '<div class="od-tl-metas">' + meta + '</div>' : '') + pbox + '</div></div>';
     }).join('');
+    fitAll_(box);
   }, function () { var b = $('odTimeline'); if (b) b.innerHTML = '<div class="od-tl-empty">Gagal memuat riwayat.</div>'; });
 }
 

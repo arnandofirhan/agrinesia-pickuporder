@@ -454,18 +454,25 @@ function fitOne_(el) {
   while (el.scrollWidth > w && s > min) { s -= 0.25; el.style.fontSize = s + 'px'; }
   el._fw = w;
 }
-/* statistik popup detail: kecilkan font otomatis agar muat 1 baris (tidak terpotong) */
-function fitStatEl_(el, base, min) {
+/* statistik popup detail: ukuran font label & angka diseragamkan, otomatis mengecil agar muat 1 baris (tidak terpotong) */
+function fitStatSize_(el, base, min) {
   el.style.removeProperty('--fs');
-  if (!el.clientWidth) return;
+  if (!el.clientWidth) return base;
   var s = base, g = 0;
-  while (el.scrollWidth > el.clientWidth + 0.5 && s > min && g++ < 40) { s -= 0.25; el.style.setProperty('--fs', s + 'px'); }
+  while (el.scrollWidth > el.clientWidth + 0.5 && s > min && g++ < 60) { s -= 0.25; el.style.setProperty('--fs', s + 'px'); }
+  return s;
 }
 function fitStats_(root) {
   var box = (root || document).querySelector('.od-stats'); if (!box) return;
   var run = function () {
-    Array.prototype.forEach.call(box.querySelectorAll('.od-stat small'), function (el) { fitStatEl_(el, 9.5, 7); });
-    Array.prototype.forEach.call(box.querySelectorAll('.od-stat b'), function (el) { fitStatEl_(el, 14.5, 9); });
+    [['small', 9.5, 6.5], ['b', 14.5, 9]].forEach(function (g) {
+      var els = Array.prototype.slice.call(box.querySelectorAll('.od-stat ' + g[0]));
+      els.forEach(function (el) { el.style.removeProperty('--fs'); });
+      if (!box.clientWidth) return;
+      var m = g[1];
+      els.forEach(function (el) { m = Math.min(m, fitStatSize_(el, g[1], g[2])); });
+      els.forEach(function (el) { if (m < g[1]) el.style.setProperty('--fs', m + 'px'); else el.style.removeProperty('--fs'); });
+    });
   };
   run();
   if (window.ResizeObserver && !box._ro3) { box._ro3 = new ResizeObserver(run); box._ro3.observe(box); }

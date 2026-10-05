@@ -454,6 +454,22 @@ function fitOne_(el) {
   while (el.scrollWidth > w && s > min) { s -= 0.25; el.style.fontSize = s + 'px'; }
   el._fw = w;
 }
+/* statistik popup detail: kecilkan font otomatis agar muat 1 baris (tidak terpotong) */
+function fitStatEl_(el, base, min) {
+  el.style.removeProperty('--fs');
+  if (!el.clientWidth) return;
+  var s = base, g = 0;
+  while (el.scrollWidth > el.clientWidth + 0.5 && s > min && g++ < 40) { s -= 0.25; el.style.setProperty('--fs', s + 'px'); }
+}
+function fitStats_(root) {
+  var box = (root || document).querySelector('.od-stats'); if (!box) return;
+  var run = function () {
+    Array.prototype.forEach.call(box.querySelectorAll('.od-stat small'), function (el) { fitStatEl_(el, 9.5, 7); });
+    Array.prototype.forEach.call(box.querySelectorAll('.od-stat b'), function (el) { fitStatEl_(el, 14.5, 9); });
+  };
+  run();
+  if (window.ResizeObserver && !box._ro3) { box._ro3 = new ResizeObserver(run); box._ro3.observe(box); }
+}
 function fitAll_(root) {
   (root || document).querySelectorAll('.fit1').forEach(function (el) {
     el._fw = 0; fitOne_(el);
@@ -1792,6 +1808,7 @@ function renderOrderDetail(o) {
     '</div>';
   loadOrderTimeline_(o);
   fitAll_($('orderDetailBody'));
+  fitStats_($('orderDetailBody'));
 
   var f = $('orderDetailFooter');
   if (!done) {

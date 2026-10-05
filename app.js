@@ -1412,13 +1412,13 @@ function renderDashboard() {
     { l: 'Completed Pickup', v: s.completedPickup, c: 'kpi-blue', i: 'check', sub: 'Sudah diambil', st: 'COMPLETED_PICKUP', dt: '' },
     { l: 'Completed Delivery', v: s.completedDelivery, c: 'kpi-teal', i: 'truck', sub: 'Sudah dikirim', st: 'COMPLETED_DELIVERY', dt: '' },
     { l: 'Total Quantity', v: s.totalQty, c: 'kpi-slate', i: 'layers', sub: Number(s.totalItem) ? Number(s.totalItem).toLocaleString('id-ID') + ' item hampers' : 'Total item order', st: '', dt: '' },
-    { l: 'Total Revenue', v: s.totalRevenue || 0, c: 'kpi-gold kpi-wide', i: 'wallet', sub: 'Total pendapatan pre-order', st: '', dt: '', money: true },
+    { l: 'Total Revenue', v: s.totalRevenue || 0, c: 'kpi-gold kpi-wide', i: 'wallet', sub: 'Total pendapatan pre-order', st: '', dt: '', money: true, aside: Number(s.totalOrder || 0).toLocaleString('id-ID') },
     { l: 'Rata-rata Order', v: avgOrder, c: 'kpi-orange', i: 'wallet', sub: 'Revenue per order', st: '', dt: '', money: true },
     { l: 'Area Aktif', v: activeAreas, c: 'kpi-teal', i: 'map', sub: 'Area yang punya order', st: '', dt: '', act: 'area-active' },
     { l: 'Completion Rate', v: completionRate, c: 'kpi-green kpi-span', i: 'check', sub: doneOrders.toLocaleString('id-ID') + ' dari ' + Number(s.totalOrder || 0).toLocaleString('id-ID') + ' order selesai (pickup + delivery)', st: '', dt: '', pct: true }
   ];
   $('statGrid').innerHTML = cards.map(function (c) {
-    return '<div class="kpi clickable ' + c.c + '" tabindex="0" role="button" title="Lihat order: ' + c.l + '" data-act="' + (c.act || 'goto-orders') + '" data-v="' + c.st + '" data-dt="' + c.dt + '"' + (c.pct ? ' style="--p:' + (Number(c.v) || 0) + '"' : '') + '><div class="kpi-icon">' + ic(c.i) + '</div><div class="kpi-label">' + c.l + '</div><div class="kpi-value">' + (c.money ? fmtCurrency(c.v) : c.pct ? String(c.v).replace('.', ',') + '%' : Number(c.v).toLocaleString('id-ID')) + '</div><div class="kpi-sub">' + c.sub + '</div>' + (c.pct ? '<div class="kpi-bar"><i style="width:' + Math.min(100, c.v) + '%"></i></div>' : '') + (c.pct ? '<div class="kpi-ring">' + ringSvg + '</div><div class="kpi-chips">' + chipsHtml + '</div>' : '') + '<span class="kpi-go">' + ic('chevRight', 'sm') + '</span></div>';
+    return '<div class="kpi clickable ' + c.c + '" tabindex="0" role="button" title="Lihat order: ' + c.l + '" data-act="' + (c.act || 'goto-orders') + '" data-v="' + c.st + '" data-dt="' + c.dt + '"' + (c.pct ? ' style="--p:' + (Number(c.v) || 0) + '"' : '') + '><div class="kpi-icon">' + ic(c.i) + '</div><div class="kpi-label">' + c.l + '</div><div class="kpi-value">' + (c.money ? fmtCurrency(c.v) : c.pct ? String(c.v).replace('.', ',') + '%' : Number(c.v).toLocaleString('id-ID')) + '</div><div class="kpi-sub">' + c.sub + '</div>' + (c.pct ? '<div class="kpi-bar"><i style="width:' + Math.min(100, c.v) + '%"></i></div>' : '') + (c.pct ? '<div class="kpi-ring">' + ringSvg + '</div><div class="kpi-chips">' + chipsHtml + '</div>' : '') + (c.aside ? '<div class="kpi-aside"><b>' + c.aside + '</b><span>order</span></div>' : '') + '<span class="kpi-go">' + ic('chevRight', 'sm') + '</span></div>';
   }).join('');
 
   var sg = $('schedGrid');
@@ -1795,7 +1795,7 @@ function renderOrderDetail(o) {
 
   var f = $('orderDetailFooter');
   if (!done) {
-    f.innerHTML = '<button class="btn btn-secondary" data-close>Close</button><button class="btn btn-primary" id="markCompleteBtn">' + ic('check', 'sm') + ' ' + completeLabel_(o) + '</button>';
+    f.innerHTML = '<button class="btn btn-secondary" data-close>Close</button><button class="btn btn-primary" id="markCompleteBtn">' + ic('check', 'sm') + '<span class="btn-lbl">' + (isDeliveryOrder(o) ? 'Complete Delivery' : 'Complete Pickup') + (o.partial ? '<small>' + (o.total - o.done) + ' item tersisa</small>' : '') + '</span></button>';
     f.querySelector('[data-close]').addEventListener('click', function () { closeModal('modalOrderDetail'); });
     $('markCompleteBtn').addEventListener('click', function () { askComplete(o); });
   } else {
@@ -1903,9 +1903,9 @@ function askComplete(o) {
   var doneIt = o.items.filter(function (x) { return isDoneStatus_(x.pickupStatus); });
   var list = open.map(function (x) {
     return '<label class="pf-it on"><input type="checkbox" value="' + esc(x.row) + '" checked><span class="pf-ck">' + ic('check', 'sm') + '</span>' +
-      '<span class="pf-nm">' + esc(x.hamperName || '-') + '</span><b class="pf-q">' + esc(x.qty) + '<small>pcs</small></b></label>';
+      '<span class="pf-nm fit1" title="' + esc(x.hamperName || '-') + '">' + esc(x.hamperName || '-') + '</span><b class="pf-q">' + esc(x.qty) + '<small>pcs</small></b></label>';
   }).join('') + doneIt.map(function (x) {
-    return '<div class="pf-it is-done"><span class="pf-ck">' + ic('check', 'sm') + '</span><span class="pf-nm">' + esc(x.hamperName || '-') + '</span><b class="pf-q">' + esc(x.qty) + '<small>pcs</small></b><em>Selesai ' + esc(fmtDate(x.actualDate) || '') + '</em></div>';
+    return '<div class="pf-it is-done"><span class="pf-ck">' + ic('check', 'sm') + '</span><span class="pf-nm fit1" title="' + esc(x.hamperName || '-') + '">' + esc(x.hamperName || '-') + '</span><b class="pf-q">' + esc(x.qty) + '<small>pcs</small></b><em>Selesai ' + esc(fmtDate(x.actualDate) || '') + '</em></div>';
   }).join('');
   $('proofOrder').innerHTML = '<div class="pf-oref">' + ic(delivery ? 'truck' : 'package', 'sm') + '<b>' + esc(o.orderReference) + '</b>' + typeChip(o.deliveryType) + progChip_(o) + '</div>' +
     '<div class="pf-ometa">' + esc(o.customer || '-') + ' &middot; ' + esc(o.outletName || '-') + '</div>' +
@@ -1918,6 +1918,7 @@ function askComplete(o) {
   setProofMode_(PROOF.mode);
   pfSync_();
   openModal('modalProof');
+  fitAll_($('proofOrder'));
 }
 function setProofMode_(m) {
   if (m !== 'resi' && m !== 'photo') return;

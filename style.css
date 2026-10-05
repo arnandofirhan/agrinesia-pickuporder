@@ -3554,3 +3554,11 @@ body.dark #schedGrid .sc-late{--sc:#cbd5e1;--scbg:rgba(148,163,184,.2);--sct:rgb
   #modalOrderDetail .od-stats .od-stat:nth-child(n) b{display:block;white-space:nowrap !important;overflow:hidden;text-overflow:clip;font-size:var(--fs,14.5px) !important;font-weight:800;line-height:1.2;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
   #modalOrderDetail .od-stats .od-stat:nth-child(1) b::after{content:" pcs";font-size:10.5px;font-weight:700;color:var(--muted);}
 }
+/* ===== fix: statistik detail — font seragam, kolom Qty menyesuaikan isi (tidak terpotong) ===== */
+@media (max-width:600px){
+  #modalOrderDetail .od-stats{grid-template-columns:auto minmax(0,1fr) minmax(0,1fr) !important;gap:7px;}
+  #modalOrderDetail .od-stats .od-stat:nth-child(n){padding:10px 9px 11px !important;}
+  #modalOrderDetail .od-stats .od-stat:nth-child(n) small{gap:4px;letter-spacing:.02em;}
+  #modalOrderDetail .od-stats .od-stat:nth-child(n) small::before{width:5px;height:5px;}
+  #modalOrderDetail .od-stats .od-stat:nth-child(1) b::after{font-size:.78em;}
+}
